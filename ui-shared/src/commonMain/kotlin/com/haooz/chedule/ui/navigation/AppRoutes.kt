@@ -138,6 +138,7 @@ import com.haooz.chedule.ui.activities.weather.skyPhaseOrNow
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownMenu
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownMenuItem
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownShadowPadding
+import com.haooz.chedule.ui.basic.LiquidGlassTextButton
 import com.haooz.chedule.ui.basic.LiquidTopBarButton
 import com.haooz.chedule.ui.basic.ShortcutMenu
 import com.haooz.chedule.ui.basic.ShortcutMenuItem
@@ -195,8 +196,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -248,21 +247,12 @@ private fun segmentControlModifier(): Modifier =
 /**
  * 底部主操作按钮：贴底居中，左右比正文再收 16dp，并避开导航栏。
  *
- * ## 从玻璃按钮换成原生扁平按钮（2026-11-15）
+ * ⚠ 这是**五个页面共用**的组件（反馈 / 备份中心 / 小部件引导 / 课程提醒 / WebDAV），
+ * 不是课程提醒页专用的。所以它的默认形态必须保持原样（玻璃胶囊）——
+ * 任何「只在某一页生效」的视觉调整都不能改这里，否则会连带改掉另外四页
+ * （2026-11-15 就这么干过一次：把这里换成原生按钮，小部件页的「添加到桌面」跟着变了）。
  *
- * 用户真机反馈：这些按钮「伪玻璃有点难看」，而且 **「点按没反馈，长按才有」**。
- *
- * 后者查到了硬原因：[LiquidGlassTextButton] 的按压反馈来自 miuix 的
- * `InteractiveHighlight.gestureModifier`，它用 `spring(0.5f, 300f)` 把 pressProgress
- * 从 0 动画到 1 —— 实测约 **100ms** 才到 1.0，60ms 时只有 49%（缩放约 1%）。
- * 一次正常点按通常短于这个时间，视觉上就是「什么都没发生」；长按跑满动画才看得见。
- * 原生按钮的按压反馈走 Indication 节点，按下瞬间生效，这才是符合直觉的反馈。
- *
- * 至于「伪玻璃难看」：按钮的玻璃是 `drawBackdrop` + 运行时 shader 把页面内容折射一遍，
- * 在纯色背景的文档页上折射不出任何东西，只剩一层发灰的半透明膜 + 一圈阴影 ——
- * 看得到的只有「假」。原生按钮用主题色实底，干净且与设置页其它控件一致。
- *
- * @param backdrop 已不再使用（保留形参以免动 6 个调用点的签名）
+ * @param backdrop 页面采样层 —— 空层渲染出来只是一块纯色，没有玻璃效果
  */
 @Composable
 private fun BoxScope.BottomActionButton(
@@ -272,9 +262,11 @@ private fun BoxScope.BottomActionButton(
     onClick: () -> Unit,
 ) {
     val horizontalPadding = if (isTabletWidth()) 20.dp else 16.dp
-    Button(
-        onClick = onClick,
+    LiquidGlassTextButton(
+        text = text,
         enabled = enabled,
+        backdrop = backdrop,
+        onClick = onClick,
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
@@ -284,11 +276,9 @@ private fun BoxScope.BottomActionButton(
             )
             .navigationBarsPadding()
             .padding(bottom = 20.dp),
-        colors = ButtonDefaults.buttonColorsPrimary(),
-    ) {
-        Text(text = text)
-    }
+    )
 }
+
 
 /**
  * 顶栏刷新按钮：载入中换成转圈，否则是 28dp 图标的玻璃按钮。
