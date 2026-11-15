@@ -2,12 +2,12 @@
 package com.haooz.chedule.ui.activities
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -54,6 +55,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haooz.chedule.data.storage.AppStorage
@@ -70,6 +72,7 @@ import com.haooz.chedule.data.platform.showToast
 import com.haooz.chedule.data.repo.CourseRepository
 import com.haooz.chedule.i18n.AppLanguage
 import com.haooz.chedule.i18n.CommonStr
+import com.haooz.chedule.i18n.ReminderHealthStr
 import com.haooz.chedule.i18n.ReminderStr
 import com.haooz.chedule.ui.basic.AiSparkleIcon
 import com.haooz.chedule.ui.basic.OverlayDropdownMenu
@@ -1986,27 +1989,27 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
     // ① 通知权限
     val notifOk = controller.hasNotificationPermission()
     out += ReminderHealthItem(
-        title = "通知权限",
+        title = ReminderHealthStr.notifPermission(),
         ok = notifOk,
-        detail = if (notifOk) "已允许" else "被关闭了，所有提醒都发不出来",
+        detail = if (notifOk) ReminderHealthStr.notifAllowed() else ReminderHealthStr.notifBlocked(),
         fix = ReminderHealthFix.NOTIFICATIONS,
     )
 
     // ② 电池优化白名单（HyperOS 上最常见的「闹钟不响」原因）
     val batteryOk = controller.isIgnoringBatteryOptimizations()
     out += ReminderHealthItem(
-        title = "后台不受限",
+        title = ReminderHealthStr.batteryUnrestricted(),
         ok = batteryOk,
-        detail = if (batteryOk) "已加入电池优化白名单" else "未加入白名单，锁屏久了提醒可能被系统压下",
+        detail = if (batteryOk) ReminderHealthStr.batteryWhitelisted() else ReminderHealthStr.batteryNotWhitelisted(),
         fix = ReminderHealthFix.BATTERY,
     )
 
     // ③ 精确闹钟
     val exactOk = controller.canScheduleExactAlarms()
     out += ReminderHealthItem(
-        title = "精确闹钟",
+        title = ReminderHealthStr.exactAlarm(),
         ok = exactOk,
-        detail = if (exactOk) "可用，提醒能对准分钟" else "不可用，提醒会漂移甚至不发",
+        detail = if (exactOk) ReminderHealthStr.exactAvailable() else ReminderHealthStr.exactUnavailable(),
         fix = ReminderHealthFix.EXACT_ALARM,
     )
 
@@ -2016,12 +2019,12 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
     // 不做「一定是没开自启动」这种看似确定、实则误导的判定。
     val bgRestricted = controller.isBackgroundRestricted()
     out += ReminderHealthItem(
-        title = "后台自启动",
+        title = ReminderHealthStr.autoStart(),
         ok = !bgRestricted,
         detail = if (bgRestricted) {
-            "系统已限制后台运行，锁屏久了提醒可能被压住"
+            ReminderHealthStr.autoStartRestricted()
         } else {
-            "系统未限制后台；厂商的自启动开关需在应用信息里手动确认"
+            ReminderHealthStr.autoStartOk()
         },
         fix = if (bgRestricted) ReminderHealthFix.APP_DETAILS else null,
     )
@@ -2032,12 +2035,12 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
     val missingCount = channelStates.count { it == null }
     val blockedCount = channelStates.count { it != null && it.disabled }
     out += ReminderHealthItem(
-        title = "提醒通道",
+        title = ReminderHealthStr.notifChannels(),
         ok = blockedCount == 0,
         detail = when {
-            blockedCount > 0 -> "有 $blockedCount 个通道被停用，对应提醒不会显示"
-            missingCount > 0 -> "尚未创建（发出第一条提醒后会自动建好）"
-            else -> "课前提醒 / 假期与返校 / 实时动态 都开着"
+            blockedCount > 0 -> ReminderHealthStr.channelsBlockedN(blockedCount)
+            missingCount > 0 -> ReminderHealthStr.channelsMissing()
+            else -> ReminderHealthStr.channelsAllOn()
         },
         fix = ReminderHealthFix.NOTIFICATIONS,
     )
@@ -2046,12 +2049,12 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
     // 实时动态通道申请了绕过勿扰，所以勿扰只会压住普通提醒 —— 文案按这个事实写，别吓人。
     val systemDnd = controller.isSystemDndActive()
     out += ReminderHealthItem(
-        title = "系统勿扰",
+        title = ReminderHealthStr.systemDnd(),
         ok = !systemDnd,
         detail = if (systemDnd) {
-            "系统当前处于勿扰/静音：普通提醒会被静音（实时动态通道已申请绕过勿扰）"
+            ReminderHealthStr.dndOn()
         } else {
-            "未开启"
+            ReminderHealthStr.dndOff()
         },
         fix = null,
     )
@@ -2064,15 +2067,15 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
     if (beforeExclusion.enabled || endExclusion.enabled) {
         val parts = mutableListOf<String>()
         if (beforeExclusion.enabled) {
-            parts += "前一天 ${beforeExclusion.startSection}~${beforeExclusion.endSection} 节"
+            parts += ReminderHealthStr.holidayBeforeRange(beforeExclusion.startSection, beforeExclusion.endSection)
         }
         if (endExclusion.enabled) {
-            parts += "最后一天 ${endExclusion.startSection}~${endExclusion.endSection} 节"
+            parts += ReminderHealthStr.holidayEndRange(endExclusion.startSection, endExclusion.endSection)
         }
         out += ReminderHealthItem(
-            title = "假期课程排除",
+            title = ReminderHealthStr.holidayExclusion(),
             ok = true,
-            detail = "假期课程排除：" + parts.joinToString("、") + " 不展示也不提醒（正常）",
+            detail = ReminderHealthStr.holidayExclusionBody(parts.joinToString(if (AppLanguage.isZh) "、" else ", ")),
             fix = null,
             isInfo = true,
         )
@@ -2085,8 +2088,16 @@ private fun buildReminderHealth(controller: ReminderController): List<ReminderHe
  * 提醒体检：**默认只显示一行粗略状态**，点一下才展开成明细。
  *
  * 原来是四五项一直摊开，占掉小半屏；而绝大多数时候用户只需要知道「有没有问题」。
- * 概览行本身可点（右侧给「展开 / 收起」字样，不是靠猜），展开时会重新检查一次，
- * 免得展开看到的是进页面那一刻的旧状态。
+ *
+ * ## 视觉（2026-11-15 重做，与「通知与超级岛测试」页同一套语言）
+ * - 概览行左侧一条**状态色条**：全通过=绿、有隐患=琥珀，扫一眼就知道要不要展开；
+ * - 展开后每项前面一个**状态点**（实心=不通过 / 空心=通过），与色条同一套语义；
+ * - 概览行、每个可点的体检项都有**按压缩放 + 触感反馈** —— 原来点了只变文字，很难确认到底点没点中；
+ * - 条目之间用极细分隔线（不是每项一张卡）：它们本来就是「同一件事的几个检查项」。
+ *
+ * ⚠ 这里**不用** softglass：本页挂在 DocumentPageScaffold 的 content 里，而那个 content
+ * 正被 layerBackdrop 录进采样层，在 content 里画玻璃卡就是自采样（会崩）。
+ * 全仓的玻璃只出现在录制层之外（顶栏按钮、下拉面板、对话框）。
  */
 @Composable
 private fun ReminderHealthCard(controller: ReminderController) {
@@ -2094,6 +2105,7 @@ private fun ReminderHealthCard(controller: ReminderController) {
     var expanded by remember { mutableStateOf(false) }
     val items = remember(tick, controller) { buildReminderHealth(controller) }
     val badCount = items.count { !it.ok }
+    val allOk = badCount == 0
     // commonMain 不能起 Intent：跳转一律走平台控制器（Noop 实现是空动作，桌面/iOS 点了没反应）
     val openFix: (ReminderHealthFix) -> Unit = { fix ->
         when (fix) {
@@ -2104,6 +2116,17 @@ private fun ReminderHealthCard(controller: ReminderController) {
         }
     }
 
+    val haptic = LocalHapticFeedback.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.985f else 1f,
+        animationSpec = tween(durationMillis = 90),
+        label = "healthCardScale",
+    )
+    // 状态色：与测试页的「通过/待处理」同一族语义
+    val accent = if (allOk) HealthOkColor else HealthWarnColor
+
     Card(
         cornerRadius = 20.dp,
         // 与页内其它卡同一条约定：本页列表用 Arrangement.Top，间距一律由卡片自己的
@@ -2112,50 +2135,52 @@ private fun ReminderHealthCard(controller: ReminderController) {
         insideMargin = PaddingValues(0.dp),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
+            // ── 概览行：色条 + 标题 + 状态 + 展开/收起，整行按压缩放 ──
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable {
+                    .graphicsLayer { scaleX = scale; scaleY = scale }
+                    .clickable(interactionSource = interaction, indication = null) {
+                        haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                         // 展开时重查一次，保证看到的是当前状态
                         if (!expanded) tick++
                         expanded = !expanded
                     }
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(start = 14.dp, end = 16.dp, top = 14.dp, bottom = 14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = "提醒体检",
-                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
-                    color = MiuixTheme.colorScheme.onSurface,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = if (badCount == 0) "全部通过" else "$badCount 项待处理",
-                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                    color = if (badCount == 0) {
-                        MiuixTheme.colorScheme.onSurfaceVariantSummary
-                    } else {
-                        ComposeColor(0xFFE07A2B)
-                    },
-                )
-                Text(
-                    text = if (expanded) "收起" else "展开",
-                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
+                HealthAccentBar(accent)
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = ReminderHealthStr.title(),
+                        style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold),
+                        color = MiuixTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = if (allOk) ReminderHealthStr.allPassed() else ReminderHealthStr.pendingN(badCount),
+                        style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
+                        color = if (allOk) MiuixTheme.colorScheme.onSurfaceVariantSummary else accent,
+                    )
+                }
+                HealthPill(
+                    text = if (expanded) ReminderHealthStr.collapse() else ReminderHealthStr.expand(),
                     color = MiuixTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 10.dp),
                 )
             }
+
             AnimatedVisibility(visible = expanded) {
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    items.forEach { item ->
+                    items.forEachIndexed { index, item ->
                         if (item.isInfo) {
-                            // 说明项：浅色小字一行 —— 不占「通过/不通过」的图标位，免得跟上面的节奏打架
+                            // 说明项：浅色小字一行 —— 不占「通过/不通过」的点位，免得跟上面的节奏打架
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                                    .padding(horizontal = 16.dp, vertical = 7.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = item.detail,
                                     style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
@@ -2163,62 +2188,196 @@ private fun ReminderHealthCard(controller: ReminderController) {
                                 )
                             }
                         } else {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable(enabled = !item.ok && item.fix != null) {
-                                        item.fix?.let(openFix)
-                                    }
-                                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = if (item.ok) "✓" else "✕",
-                                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
-                                    color = if (item.ok) {
-                                        ComposeColor(0xFF3BA55D)
-                                    } else {
-                                        ComposeColor(0xFFD7263D)
-                                    },
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = item.title,
-                                        style = MiuixTheme.textStyles.body1,
-                                        color = MiuixTheme.colorScheme.onSurface,
-                                    )
-                                    Text(
-                                        text = item.detail,
-                                        style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                                    )
-                                }
-                                if (!item.ok && item.fix != null) {
-                                    Text(
-                                        text = "去设置",
-                                        style = MiuixTheme.textStyles.body1.copy(fontSize = 13.sp),
-                                        color = MiuixTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
+                            HealthItemRow(
+                                item = item,
+                                onFix = { item.fix?.let(openFix) },
+                            )
+                        }
+                        if (index != items.lastIndex) {
+                            HealthDivider()
                         }
                     }
-                    TextButton(
-                        "重新检查",
-                        { tick++ },
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
+                    // 底部「重新检查」：与展开/收起同一颗胶囊样式，按压有反馈
+                    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp)) {
+                        HealthActionPill(
+                            text = ReminderHealthStr.recheck(),
+                            color = MiuixTheme.colorScheme.primary,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                                tick++
+                            },
+                        )
+                    }
                 }
             }
+
             if (!expanded && badCount > 0) {
                 Text(
-                    text = "点这一行展开，能看到是哪几项、并直接跳去设置",
+                    text = ReminderHealthStr.tapToExpand(),
                     style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
                 )
             }
+        }
+    }
+}
+
+/** 体检通过色（与测试页的通道色同一族，绿=健康）。 */
+private val HealthOkColor = ComposeColor(0xFF3BA55D)
+/** 体检隐患色（琥珀，比纯红柔和：这些项是「可能发不出提醒」，不是错误）。 */
+private val HealthWarnColor = ComposeColor(0xFFE07A2B)
+
+/** 左侧状态色条：26dp 高、3dp 宽，圆角胶囊。 */
+@Composable
+private fun HealthAccentBar(color: Color) {
+    Box(
+        modifier = Modifier
+            .size(width = 3.dp, height = 26.dp)
+            .clip(ContinuousRoundedRectangle(2.dp))
+            .background(color.copy(alpha = 0.85f))
+    )
+}
+
+/** 极细分隔线：从文字左缘起（让开色条那一列），与测试页的场景分隔同款。 */
+@Composable
+private fun HealthDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp, end = 16.dp)
+            .height(0.5.dp)
+            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+    )
+}
+
+/** 只读小胶囊（展开 / 收起这类状态词，不做点击）。 */
+@Composable
+private fun HealthPill(text: String, color: Color) {
+    Box(
+        modifier = Modifier
+            .clip(ContinuousRoundedRectangle(14.dp))
+            .background(color.copy(alpha = 0.12f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            color = color,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 可点的胶囊（重新检查）：按压缩放 + 触感。 */
+@Composable
+private fun HealthActionPill(
+    text: String,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    val haptic = LocalHapticFeedback.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.94f else 1f,
+        animationSpec = tween(durationMillis = 110),
+        label = "healthPillScale",
+    )
+    Box(
+        modifier = Modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clip(ContinuousRoundedRectangle(14.dp))
+            .background(color.copy(alpha = if (pressed) 0.22f else 0.12f))
+            .clickable(interactionSource = interaction, indication = null) {
+                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                onClick()
+            }
+            .padding(horizontal = 14.dp, vertical = 7.dp),
+    ) {
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            color = color,
+            maxLines = 1,
+        )
+    }
+}
+
+/**
+ * 一条体检项：状态点 + 标题 + 说明 +「去设置」。
+ *
+ * 只有「不通过且能跳转」的项才可点 —— 通过项点了没反馈反而让人以为坏了。
+ */
+@Composable
+private fun HealthItemRow(
+    item: ReminderHealthItem,
+    onFix: () -> Unit,
+) {
+    val clickable = !item.ok && item.fix != null
+    val haptic = LocalHapticFeedback.current
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && clickable) 0.99f else 1f,
+        animationSpec = tween(durationMillis = 90),
+        label = "healthItemScale",
+    )
+    val dotColor = if (item.ok) HealthOkColor else HealthWarnColor
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .clickable(
+                enabled = clickable,
+                interactionSource = interaction,
+                indication = null,
+            ) {
+                haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
+                onFix()
+            }
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        // 状态点：通过=实心空心各一半（描边），不通过=实心。比 ✓/✕ 字形更安静，
+        // 也不会在字体缺字时变成豆腐块。
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(ContinuousRoundedRectangle(5.dp))
+                .background(
+                    if (item.ok) dotColor.copy(alpha = 0.28f) else dotColor
+                )
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = MiuixTheme.textStyles.body1,
+                color = MiuixTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = item.detail,
+                style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
+                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (clickable) {
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = ReminderHealthStr.goToSettings(),
+                style = MiuixTheme.textStyles.body1.copy(
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+                color = MiuixTheme.colorScheme.primary,
+                maxLines = 1,
+            )
         }
     }
 }

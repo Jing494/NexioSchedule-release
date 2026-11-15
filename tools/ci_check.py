@@ -332,7 +332,10 @@ CHECKS = [
     (
         "提醒体检要认识「假期首末课程排除」（否则用户会以为提醒坏了）",
         F_REMSCREEN,
-        [r"假期课程排除：", r"loadBeforeCourseExclusion"],
+        # 2026-11-15：文案已抽到 i18n（ReminderHealthStr.holidayExclusion*），
+        # 原来钉死的中文字面量「假期课程排除：」不再出现在本文件里。
+        # 仍然要求：① 本文件确实引用了这条 i18n 键；② 仍然读着上游那两个排除开关。
+        [r"ReminderHealthStr\.holidayExclusion", r"loadBeforeCourseExclusion"],
         [],
     ),
     (

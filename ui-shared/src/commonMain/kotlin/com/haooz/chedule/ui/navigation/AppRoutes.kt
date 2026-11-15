@@ -151,8 +151,10 @@ import com.haooz.chedule.ui.effects.motion.MORPH_BACKGROUND_SHRINK
 import com.haooz.chedule.ui.effects.motion.OobeCubicOutEasing
 import com.haooz.chedule.ui.effects.motion.OobeQuartOutEasing
 import com.haooz.chedule.ui.screens.CourseEditScreen
+import com.haooz.chedule.ui.screens.ReminderTestChannel
 import com.haooz.chedule.ui.screens.ReminderTestEntry
 import com.haooz.chedule.ui.screens.ReminderTestGroup
+import com.haooz.chedule.i18n.ReminderTestStr
 import com.haooz.chedule.ui.screens.ReminderTestScreen
 import com.haooz.chedule.ui.screens.ScheduleSettingsScreen
 import com.haooz.chedule.ui.screens.SettingsSearchHeader
@@ -1369,12 +1371,18 @@ fun CourseReminderRoute(
 fun ReminderTestRoute(
     router: AppRouter,
     channelLabel: String = "",
+    /** 当前是否走「岛」通道。由宿主按主路径同一套判定传入，页面据此显示状态点 —— 别拿 channelLabel 去 contains 猜文案。 */
+    islandActive: Boolean = false,
     groups: List<ReminderTestGroup> = emptyList(),
+    /** 系统里这几条通知通道的真实状态（宿主读 NotificationManager）；空 = 读不到 */
+    channels: List<ReminderTestChannel> = emptyList(),
     onRefreshChannel: () -> String = { channelLabel },
+    /** 打开本应用的通知设置页（通道在里面） */
+    onOpenChannelSettings: () -> Unit = {},
     onSend: (ReminderTestEntry) -> Unit = {},
 ) {
     DocumentPageScaffold(
-        title = "通知与超级岛测试",
+        title = ReminderTestStr.pageTitle(),
         onBack = { router.popBack() },
     ) { scrollBehavior, _ ->
         // ⚠ 刻意不把 `backdrop` 传进 content：它正是录制 content 自己那一层，
@@ -1382,8 +1390,11 @@ fun ReminderTestRoute(
         // 文档页里玻璃只出现在顶栏按钮、下拉面板与对话框这些「录制层之外」的位置。
         ReminderTestScreen(
             channelLabel = channelLabel,
+            islandActive = islandActive,
             groups = groups,
+            channels = channels,
             onRefreshChannel = onRefreshChannel,
+            onOpenChannelSettings = onOpenChannelSettings,
             onSend = onSend,
             scrollBehavior = scrollBehavior,
         )

@@ -247,11 +247,29 @@ fun AppRouteContent(
         // 通知 / 超级岛 / 实时动态测试：场景表与发送都在 :androidApp（共享页只展示与派发）
         AppRoute.ReminderTest -> {
             val context = LocalContext.current
+            // 通道状态要能重读：从系统设置回来、或点「重新读取」时 +1，触发重新查
+            var refreshChannelsTick by remember { mutableIntStateOf(0) }
+            // 语言与「触发一次重新读取」都要能刷新这些 String：L10n 在组合外求值，
+            // 只 remember(refreshTick) 的话，切语言后要退出页面再进来才变。
+            val lang = AppLanguage.resolved
             ReminderTestRoute(
                 router = router,
-                channelLabel = remember { ReminderTestScenario.channelLabel(context) },
-                groups = remember { ReminderTestScenario.groups() },
-                onRefreshChannel = { ReminderTestScenario.channelLabel(context) },
+                channelLabel = remember(refreshChannelsTick, lang) {
+                    ReminderTestScenario.channelLabel(context)
+                },
+                // 状态点用宿主的语义判定（不是拿文案去 contains 猜），English 下也成立
+                islandActive = remember { ReminderTestScenario.isIslandActive(context) },
+                groups = remember(lang) { ReminderTestScenario.groups() },
+                // 通道状态读一次；点「重新读取」或从系统设置回来时 +1 触发重读
+                channels = remember(refreshChannelsTick, lang) {
+                    ReminderTestScenario.notificationChannels(context)
+                },
+                onOpenChannelSettings = { ReminderTestScenario.openNotificationSettings(context) },
+                onRefreshChannel = {
+                    // 通道状态与文案一起重读（用户可能刚在系统设置里改过通道）
+                    refreshChannelsTick++
+                    ReminderTestScenario.channelLabel(context)
+                },
                 onSend = { entry -> ReminderTestScenario.send(context, entry.id) },
             )
         }

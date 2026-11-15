@@ -4,6 +4,7 @@ package com.haooz.chedule.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -28,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -38,6 +40,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.haooz.chedule.data.platform.showToast
+import com.haooz.chedule.i18n.ReminderTestStr
 import com.haooz.chedule.ui.components.text.material.Text
 import com.haooz.softglass.shape.ContinuousRoundedRectangle
 import top.yukonga.miuix.kmp.basic.Card
@@ -53,6 +56,12 @@ import top.yukonga.miuix.kmp.utils.scrollEndHaptic
 private val IslandAccent = Color(0xFF5B5BD6)
 /** 普通通知通道色。 */
 private val NeutralAccent = Color(0xFF8A8A8E)
+/** 通道正常（绿）。 */
+private val ChannelOkColor = Color(0xFF3BA55D)
+/** 通道降到静音档（琥珀）。 */
+private val ChannelWarnColor = Color(0xFFE07A2B)
+/** 通道被关掉（红）。 */
+private val ChannelOffColor = Color(0xFFD7263D)
 
 /**
  * 测试页的一个场景。
@@ -74,6 +83,23 @@ data class ReminderTestEntry(
 data class ReminderTestGroup(
     val title: String,
     val entries: List<ReminderTestEntry>,
+)
+
+/**
+ * 一条通知通道在**系统里的真实状态**（宿主侧读 NotificationManager）。
+ *
+ * ⚠ 「没建出来」与「被用户停用」必须分开：全新安装时通道还不存在，
+ * 报成「已停用」就是假警报（提醒体检踩过一次，这里沿用同一口径）。
+ */
+data class ReminderTestChannel(
+    /** 通道名（取系统里那份，用户可能改过）；通道不存在时为空串 */
+    val name: String,
+    /** 通道尚未创建 */
+    val missing: Boolean = false,
+    /** 被用户彻底关掉（importance == NONE） */
+    val disabled: Boolean = false,
+    /** 降到了「静音」档（还能弹，但不响不震） */
+    val silenced: Boolean = false,
 )
 
 /** 卡片圆角：与课表卡片同一档（20dp），视觉上一眼「同一套器件」。 */
@@ -113,8 +139,14 @@ private val AccentBarWidth = 3.dp
 @Composable
 fun ReminderTestScreen(
     channelLabel: String,
+    /** 当前是否走「岛」通道（宿主判定）；用它决定状态点，别去解析 channelLabel 文案 */
+    islandActive: Boolean = false,
     groups: List<ReminderTestGroup>,
+    /** 系统里这几条通知通道的真实状态；空 = 读不到（按「读不到」展示，不编造） */
+    channels: List<ReminderTestChannel> = emptyList(),
     onRefreshChannel: () -> String,
+    /** 点通道行：打开本应用的通知设置页 */
+    onOpenChannelSettings: () -> Unit = {},
     onSend: (ReminderTestEntry) -> Unit,
     scrollBehavior: SharedScrollBehavior? = null,
 ) {
@@ -153,7 +185,14 @@ fun ReminderTestScreen(
                 item(key = "channel") {
                     ReminderTestChannelCard(
                         channel = channel,
+                        islandActive = islandActive,
                         onRefresh = { channel = onRefreshChannel() },
+                    )
+                }
+                item(key = "channels") {
+                    ReminderTestChannelsCard(
+                        channels = channels,
+                        onOpenSettings = onOpenChannelSettings,
                     )
                 }
                 groups.forEach { group ->
@@ -192,6 +231,7 @@ private fun TestCard(content: @Composable () -> Unit) {
 @Composable
 private fun ReminderTestChannelCard(
     channel: String,
+    islandActive: Boolean,
     onRefresh: () -> Unit,
 ) {
     TestCard {
@@ -200,8 +240,10 @@ private fun ReminderTestChannelCard(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                // 状态点：走岛=靛蓝实心，普通实时动态=中空灰
-                val islandOn = channel.contains("岛")
+                // 状态点：走岛=靛蓝实心，普通实时动态=中空灰。
+                // ★ 用宿主给的 islandActive，**不要** contains("岛") —— 那既依赖中文文案，
+                //   切到 English 后又永远匹配不上（"Super Island" 里没有「岛」）。
+                val islandOn = islandActive
                 Box(
                     modifier = Modifier
                         .size(9.dp)
@@ -214,7 +256,7 @@ private fun ReminderTestChannelCard(
                 Spacer(modifier = Modifier.size(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "当前通道",
+                        text = ReminderTestStr.currentChannel(),
                         style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
                         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                     )
@@ -227,11 +269,10 @@ private fun ReminderTestChannelCard(
                     )
                 }
                 Spacer(modifier = Modifier.size(8.dp))
-                PressablePill(text = "重新读取", onClick = onRefresh)
+                PressablePill(text = ReminderTestStr.reread(), onClick = onRefresh)
             }
             Text(
-                text = "课程链路与返校提醒都按这个通道发：开了超级岛走岛，关掉走原生实时动态。" +
-                    "清单 / 余额 / 次日提醒是普通通知，不走岛。",
+                text = ReminderTestStr.channelExplain(),
                 style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
                 color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 16.dp),
@@ -303,8 +344,8 @@ private fun ReminderTestScenarioCard(
                     entry = entry,
                     onClick = {
                         onSend(entry)
-                        val where = if (entry.liveContainer) channel else "普通通知"
-                        showToast("已发送：" + entry.label + "（" + where + "）")
+                        val where = if (entry.liveContainer) channel else ReminderTestStr.plainNotification()
+                        showToast(ReminderTestStr.sentToast(entry.label, where))
                     },
                 )
                 if (index != entries.lastIndex) {
@@ -375,11 +416,162 @@ private fun ScenarioRow(
                 )
             }
         }
+        Spacer(modifier = Modifier.size(10.dp))
+        // 「发送」不再是裸文字：给一颗有质感的小胶囊（高光 + 描边 + 按压回弹 + 触感）
+        SendPill(
+            text = ReminderTestStr.send(),
+            tint = if (entry.liveContainer) accent else MiuixTheme.colorScheme.primary,
+        )
+    }
+}
+
+/**
+ * 场景行右侧的「发送」胶囊。
+ *
+ * 为什么不用 miuix 按钮：这一整行都可点（点哪都发送），再嵌一个真按钮会出现两个点击靶，
+ * 语义上也重复。所以做成一颗**只负责好看**的胶囊，点击仍由整行承担。
+ *
+ * ## 关于「玻璃」
+ * 用户要的是「别再看黑阴影」。**不能**在这里真画 softglass：本页内容整体在
+ * [DocumentPageScaffold] 的采样层里，玻璃去采自己那一层会直接崩（gh31 真机闪崩的根因）。
+ * 所以这里用**不采样**的手写高光替代：半透明染色 + 顶部一道白色高光渐变 + 细描边，
+ * 视觉上接近玻璃，但一次采样都不做，也不可能崩。全站文档页里玻璃只出现在录制层之外。
+ *
+ * @param tint 通道色（岛=靛蓝 / 普通通知=主题色）
+ */
+@Composable
+private fun SendPill(text: String, tint: Color) {
+    val shape = ContinuousRoundedRectangle(13.dp)
+    Box(
+        modifier = Modifier
+            .clip(shape)
+            .background(
+                Brush.verticalGradient(
+                    listOf(tint.copy(alpha = 0.26f), tint.copy(alpha = 0.12f))
+                )
+            )
+            .border(0.5.dp, Color.White.copy(alpha = 0.32f), shape)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    ) {
+        // 顶部一道柔和高光：玻璃质感的来源，纯绘制、不采样任何内容
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        0f to Color.White.copy(alpha = 0.22f),
+                        0.55f to Color.Transparent,
+                    )
+                )
+        )
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            color = tint,
+            maxLines = 1,
+        )
+    }
+}
+
+
+/**
+ * 「通知通道」卡：把系统里这几条通道的真实状态摊开。
+ *
+ * 为什么值得单独一张卡：用户点「发送」没反应时，九成是那条通道被静音/关掉了
+ * （或者压根还没建出来）。原来页面只说「已发送」，没法继续往下查 —— 这里补上
+ * 「系统现在到底认不认这条通道」以及去改的入口。
+ *
+ * 与页面其它卡一致：miuix Card + 状态点 + 细分隔线，**不用玻璃**
+ * （本页内容在 DocumentPageScaffold 的采样层里，画玻璃就是自采样）。
+ */
+@Composable
+private fun ReminderTestChannelsCard(
+    channels: List<ReminderTestChannel>,
+    onOpenSettings: () -> Unit,
+) {
+    TestCard {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Column(modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp)) {
+                Text(
+                    text = ReminderTestStr.channelCardTitle(),
+                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold),
+                    color = MiuixTheme.colorScheme.onSurface,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = ReminderTestStr.channelCardHint(),
+                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+            if (channels.isEmpty()) {
+                Text(
+                    text = ReminderTestStr.channelReadFailed(),
+                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
+                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
+                )
+            } else {
+                channels.forEachIndexed { index, channel ->
+                    ChannelRow(channel)
+                    if (index != channels.lastIndex) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 18.dp, end = 18.dp)
+                                .height(0.5.dp)
+                                .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                        )
+                    }
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp)) {
+                PressablePill(text = ReminderTestStr.channelOpenSettings(), onClick = onOpenSettings)
+            }
+        }
+    }
+}
+
+/** 一条通道：状态点（绿=正常 / 橙=静音 / 红=关掉 / 灰=没建）+ 名字 + 状态词。 */
+@Composable
+private fun ChannelRow(channel: ReminderTestChannel) {
+    val dot = when {
+        channel.missing -> MiuixTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+        channel.disabled -> ChannelOffColor
+        channel.silenced -> ChannelWarnColor
+        else -> ChannelOkColor
+    }
+    val label = when {
+        channel.missing -> ReminderTestStr.channelMissing()
+        channel.disabled -> ReminderTestStr.channelOff()
+        channel.silenced -> ReminderTestStr.channelImportanceBlocked()
+        else -> ReminderTestStr.channelOn()
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(9.dp)
+                .clip(ContinuousRoundedRectangle(5.dp))
+                .background(dot)
+        )
+        Spacer(modifier = Modifier.size(12.dp))
+        Text(
+            text = channel.name.ifBlank { ReminderTestStr.channelMissing() },
+            style = MiuixTheme.textStyles.body1,
+            color = MiuixTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
         Spacer(modifier = Modifier.size(8.dp))
         Text(
-            text = "发送",
+            text = label,
             style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-            color = if (entry.liveContainer) accent else MiuixTheme.colorScheme.primary,
+            color = dot,
             maxLines = 1,
         )
     }
@@ -390,7 +582,7 @@ private fun ScenarioRow(
 private fun ReminderTestEmptyHint() {
     TestCard {
         Text(
-            text = "当前平台没有可用的测试场景：这些场景测的是 Android 的通知通道 / 超级岛 / 实时动态。",
+            text = ReminderTestStr.emptyHint(),
             style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
             color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(18.dp),
@@ -401,11 +593,7 @@ private fun ReminderTestEmptyHint() {
 @Composable
 private fun ReminderTestFootnote() {
     Text(
-        text = "说明：\n" +
-            "• 课程场景的「到点自动切换」靠刷新链对账，最多滞后一个刷新周期，属正常；\n" +
-            "• 课中卡到下课点会自动收岛，那是时序走到了，不是掉线；\n" +
-            "• 「课前提醒」的普通通知没有单独入口：它和岛 / 实时动态共用\n" +
-            "  sendPreClassNotification 的同一条时间线，由上面的课程场景覆盖。",
+        text = ReminderTestStr.footnote(),
         style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
         color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),

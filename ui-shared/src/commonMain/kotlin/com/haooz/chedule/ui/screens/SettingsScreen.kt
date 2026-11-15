@@ -68,6 +68,7 @@ import com.haooz.chedule.data.holiday.HolidayEntry
 import com.haooz.chedule.data.util.lengthOfMonth
 import com.haooz.chedule.data.platform.showToast
 import com.haooz.chedule.data.util.todayLocalDate
+import com.haooz.chedule.i18n.ReminderTestStr
 import com.haooz.chedule.i18n.SettingsStr
 import com.haooz.chedule.ui.components.CardExpand
 import com.haooz.chedule.ui.components.pageTopExtra
@@ -104,6 +105,7 @@ import top.yukonga.miuix.kmp.icon.extended.ChevronForward
 import top.yukonga.miuix.kmp.icon.extended.CloudFill
 import top.yukonga.miuix.kmp.icon.extended.FavoritesFill
 import top.yukonga.miuix.kmp.icon.extended.Months
+import top.yukonga.miuix.kmp.icon.extended.Promotions
 import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
 import top.yukonga.miuix.kmp.layout.SharedScrollBehavior
 import top.yukonga.miuix.kmp.layout.TopBarMaterialThreshold
@@ -281,6 +283,17 @@ internal fun ScheduleSettingsIcon() {
 @Composable
 internal fun CourseReminderIcon() {
     DrawableEntryIcon(Res.drawable.ic_settings_reminders, SettingsAccents.Red)
+}
+
+/**
+ * 通知与超级岛测试图标。
+ *
+ * 用 Promotions（横幅/推送语义）而不是复用「课程提醒」：两个入口图标完全相同时，
+ * 设置页里根本分不出哪个是哪个。蓝色底也与课程提醒的红底拉开。
+ */
+@Composable
+internal fun ReminderTestIcon() {
+    VectorEntryIcon(MiuixIcons.Promotions, SettingsAccents.Blue)
 }
 
 /** 桌面小部件图标。 */
@@ -548,8 +561,10 @@ fun SettingsScreen(
                             // 没有可测场景的平台（桌面/iOS）**整个不渲染**，别让用户点进空页面。
                             if (reminderController.supportsReminderTestPage) {
                                 SettingsEntryRow(
-                                    title = "通知与超级岛测试",
-                                    icon = { CourseReminderIcon() },
+                                    title = ReminderTestStr.settingsEntry(),
+                                    // 原来复用「课程提醒」的图标 → 两个入口长得一模一样。
+                                    // 换成「岛/通知」语义的图标：Promotions（横幅/推送）蓝底，与课程提醒的红底区分开。
+                                    icon = { ReminderTestIcon() },
                                     selected = selectedRoute == AppRoute.ReminderTest,
                                     onClick = { openRoute(AppRoute.ReminderTest) }
                                 )
