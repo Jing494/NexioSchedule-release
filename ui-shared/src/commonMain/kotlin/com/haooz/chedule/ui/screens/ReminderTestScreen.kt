@@ -132,8 +132,11 @@ private val AccentBarWidth = 3.dp
  * 本页第一版是唯一一个 —— 真机点进去即崩，改回与全站一致的做法。
  *
  * @param channelLabel 当前实际生效的通道文案（宿主判定，与主路径一致）
+ * @param islandActive 当前是否走「岛」通道：状态点用它判断，**不要**解析 [channelLabel] 文案
  * @param groups 场景分组；空列表 = 该平台没有可测场景（桌面/iOS）
- * @param onRefreshChannel 重新读取通道，返回新的文案
+ * @param channels 系统里这几条通知通道的真实状态（宿主读 NotificationManager）；空 = 读不到
+ * @param onRefreshChannel 重新读取通道，返回新的文案（宿主顺带重读 [channels]）
+ * @param onOpenChannelSettings 打开本应用的通知设置页（通道在里面）
  * @param onSend 点一条场景：宿主按 [ReminderTestEntry.id] 调主路径发送函数
  */
 @Composable
