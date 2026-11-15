@@ -89,6 +89,9 @@ object ReturnDayStr {
 
     // ── 时间/清单对话框 ──
     val balanceTimeDialog = L("余额提醒时间", "Balance reminder time")
+    /** 滚轮上方的两列标签（与官方「开始 / 结束」同一位置、同一样式） */
+    val hourLabel = L("时", "Hour")
+    val minuteLabel = L("分", "Minute")
     val prepTimeDialog = L("清单提醒时间", "Checklist reminder time")
     val prepTextLabel = L("清单内容", "Checklist content")
     val prepTextHint = L(

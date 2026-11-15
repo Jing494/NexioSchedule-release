@@ -4,7 +4,6 @@ package com.haooz.chedule.ui.screens
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -29,7 +28,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -429,44 +427,30 @@ private fun ScenarioRow(
 }
 
 /**
- * 场景行右侧的「发送」胶囊。
+ * 场景行右侧的「发送」标签。
  *
- * 为什么不用 miuix 按钮：这一整行都可点（点哪都发送），再嵌一个真按钮会出现两个点击靶，
- * 语义上也重复。所以做成一颗**只负责好看**的胶囊，点击仍由整行承担。
+ * 为什么不用真按钮：这一整行都可点（点哪都发送），再嵌一个真按钮会出现两个点击靶，
+ * 语义上也重复。所以这里只做**视觉标记**，点击仍由整行承担。
  *
- * ## 关于「玻璃」
- * 用户要的是「别再看黑阴影」。**不能**在这里真画 softglass：本页内容整体在
- * [DocumentPageScaffold] 的采样层里，玻璃去采自己那一层会直接崩（gh31 真机闪崩的根因）。
- * 所以这里用**不采样**的手写高光替代：半透明染色 + 顶部一道白色高光渐变 + 细描边，
- * 视觉上接近玻璃，但一次采样都不做，也不可能崩。全站文档页里玻璃只出现在录制层之外。
+ * ## 为什么是扁平而不是「伪玻璃」
+ * 上一版做成了「半透明染色 + 顶部白色高光 + 描边」，想模仿玻璃 —— 真机上效果是
+ * **一块能看出来的假材质**（用户原话：伪玻璃效果有点难看），而且它还是版式噪音：
+ * 每一行右边都挂一颗，列表就变成了一串玻璃钉。现在回到扁平：一层淡淡的通道色底，
+ * 颜色仍表示「这条发去岛还是普通通知」，但不再假装有材质。
+ *
+ * ⚠ 本页 content 在 DocumentPageScaffold 的采样层里，**真玻璃会自采样闪崩**（gh31 的根因）。
+ * 所以这里既不做玻璃，也不做伪玻璃。
  *
  * @param tint 通道色（岛=靛蓝 / 普通通知=主题色）
  */
 @Composable
 private fun SendPill(text: String, tint: Color) {
-    val shape = ContinuousRoundedRectangle(13.dp)
     Box(
         modifier = Modifier
-            .clip(shape)
-            .background(
-                Brush.verticalGradient(
-                    listOf(tint.copy(alpha = 0.26f), tint.copy(alpha = 0.12f))
-                )
-            )
-            .border(0.5.dp, Color.White.copy(alpha = 0.32f), shape)
+            .clip(ContinuousRoundedRectangle(13.dp))
+            .background(tint.copy(alpha = 0.10f))
             .padding(horizontal = 12.dp, vertical = 6.dp),
     ) {
-        // 顶部一道柔和高光：玻璃质感的来源，纯绘制、不采样任何内容
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.White.copy(alpha = 0.22f),
-                        0.55f to Color.Transparent,
-                    )
-                )
-        )
         Text(
             text = text,
             style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),

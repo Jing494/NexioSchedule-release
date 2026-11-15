@@ -138,7 +138,6 @@ import com.haooz.chedule.ui.activities.weather.skyPhaseOrNow
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownMenu
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownMenuItem
 import com.haooz.chedule.ui.basic.LiquidGlassDropdownShadowPadding
-import com.haooz.chedule.ui.basic.LiquidGlassTextButton
 import com.haooz.chedule.ui.basic.LiquidTopBarButton
 import com.haooz.chedule.ui.basic.ShortcutMenu
 import com.haooz.chedule.ui.basic.ShortcutMenuItem
@@ -196,6 +195,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import top.yukonga.miuix.kmp.basic.Button
+import top.yukonga.miuix.kmp.basic.ButtonDefaults
 import top.yukonga.miuix.kmp.basic.CircularProgressIndicator
 import top.yukonga.miuix.kmp.basic.TextButton
 import top.yukonga.miuix.kmp.icon.MiuixIcons
@@ -244,7 +245,25 @@ private fun segmentControlModifier(): Modifier =
         .padding(top = 8.dp)
         .padding(horizontal = if (isTabletWidth()) 20.dp else 16.dp)
 
-/** 底部主操作按钮：贴底居中，左右比正文再收 16dp，并避开导航栏。 */
+/**
+ * 底部主操作按钮：贴底居中，左右比正文再收 16dp，并避开导航栏。
+ *
+ * ## 从玻璃按钮换成原生扁平按钮（2026-11-15）
+ *
+ * 用户真机反馈：这些按钮「伪玻璃有点难看」，而且 **「点按没反馈，长按才有」**。
+ *
+ * 后者查到了硬原因：[LiquidGlassTextButton] 的按压反馈来自 miuix 的
+ * `InteractiveHighlight.gestureModifier`，它用 `spring(0.5f, 300f)` 把 pressProgress
+ * 从 0 动画到 1 —— 实测约 **100ms** 才到 1.0，60ms 时只有 49%（缩放约 1%）。
+ * 一次正常点按通常短于这个时间，视觉上就是「什么都没发生」；长按跑满动画才看得见。
+ * 原生按钮的按压反馈走 Indication 节点，按下瞬间生效，这才是符合直觉的反馈。
+ *
+ * 至于「伪玻璃难看」：按钮的玻璃是 `drawBackdrop` + 运行时 shader 把页面内容折射一遍，
+ * 在纯色背景的文档页上折射不出任何东西，只剩一层发灰的半透明膜 + 一圈阴影 ——
+ * 看得到的只有「假」。原生按钮用主题色实底，干净且与设置页其它控件一致。
+ *
+ * @param backdrop 已不再使用（保留形参以免动 6 个调用点的签名）
+ */
 @Composable
 private fun BoxScope.BottomActionButton(
     text: String,
@@ -253,11 +272,9 @@ private fun BoxScope.BottomActionButton(
     onClick: () -> Unit,
 ) {
     val horizontalPadding = if (isTabletWidth()) 20.dp else 16.dp
-    LiquidGlassTextButton(
-        text = text,
-        enabled = enabled,
-        backdrop = backdrop,
+    Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
@@ -267,7 +284,10 @@ private fun BoxScope.BottomActionButton(
             )
             .navigationBarsPadding()
             .padding(bottom = 20.dp),
-    )
+        colors = ButtonDefaults.buttonColorsPrimary(),
+    ) {
+        Text(text = text)
+    }
 }
 
 /**

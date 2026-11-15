@@ -634,6 +634,7 @@ fun HolidaySettingsScreen(
                         liquidGlassBackdrop = liquidGlassBackdrop,
                     )
                     HolidayBalanceCard(
+                        liquidGlassBackdrop = liquidGlassBackdrop,
                         onSettingsChanged = onHolidayDataChanged,
                         onSendTest = onSendReturnDayBalanceTest,
                     )
@@ -719,6 +720,7 @@ fun HolidaySettingsScreen(
                         liquidGlassBackdrop = liquidGlassBackdrop,
                     )
                     ReturnDayPrepCard(
+                        liquidGlassBackdrop = liquidGlassBackdrop,
                         onSettingsChanged = onHolidayDataChanged,
                         onSendTest = onSendReturnDayPrepTest,
                     )
@@ -2297,6 +2299,7 @@ private fun CardFootnote(text: String, accent: Color) {
 @Composable
 private fun timePickerDialog(
     title: String,
+    liquidGlassBackdrop: GlassBackdrop?,
     show: Boolean,
     hour: Int,
     minute: Int,
@@ -2305,41 +2308,84 @@ private fun timePickerDialog(
 ) {
     OverlayDialog(
         title = title,
-        summary = null,
         show = show,
-        liquidGlassBackdrop = null,
+        // ★ 官方同页的 SectionRangeDialog 就是传 backdrop 的：传 null 会变成不透明的实心白，
+        //   和页面其它对话框明显不一个材质（用户真机对比一眼看出）。
+        liquidGlassBackdrop = liquidGlassBackdrop,
         onDismissRequest = onDismiss,
     ) {
+        val haptic = LocalHapticFeedback.current
         var draftHour by remember(show) { mutableIntStateOf(hour) }
         var draftMinute by remember(show) { mutableIntStateOf(minute) }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                NumberPicker(
-                    draftHour,
-                    { draftHour = it },
-                    range = 0..23,
-                    visibleItemCount = 3,
-                    itemHeight = 44.dp,
-                    textStyle = pickerTextStyle(),
-                    label = { twoDigits(it) },
+        // ★ 结构与官方同页的 SectionRangeDialog 逐项对齐：
+        //   顶部一行「时 | 分」标签、滚轮 itemHeight 50dp（官方用的是 50，不是我们原来手写的 44）、
+        //   按钮行 top 16dp + 间距 12dp、取消是默认色、保存用 textButtonColorsPrimary()。
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.weight(1f),
-                )
-                NumberPicker(
-                    draftMinute,
-                    { draftMinute = it },
-                    range = 0..59,
-                    visibleItemCount = 3,
-                    itemHeight = 44.dp,
-                    textStyle = pickerTextStyle(),
-                    label = { twoDigits(it) },
+                ) {
+                    Text(
+                        text = ReturnDayStr.hourLabel(),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
+                    NumberPicker(
+                        value = draftHour,
+                        onValueChange = { draftHour = it },
+                        range = 0..23,
+                        visibleItemCount = 3,
+                        itemHeight = 50.dp,
+                    )
+                }
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier.weight(1f),
-                )
+                ) {
+                    Text(
+                        text = ReturnDayStr.minuteLabel(),
+                        style = MiuixTheme.textStyles.footnote1,
+                        color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 12.dp),
+                    )
+                    NumberPicker(
+                        value = draftMinute,
+                        onValueChange = { draftMinute = it },
+                        range = 0..59,
+                        visibleItemCount = 3,
+                        itemHeight = 50.dp,
+                    )
+                }
             }
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(ReturnDayStr.cancel(), onDismiss, modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 TextButton(
-                    ReturnDayStr.save(),
-                    { onConfirm(draftHour, draftMinute) },
+                    text = CommonStr.cancel(),
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onDismiss()
+                    },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = CommonStr.ok(),
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                        onConfirm(draftHour, draftMinute)
+                    },
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -2357,6 +2403,7 @@ private fun timePickerDialog(
  */
 @Composable
 private fun ReturnDayPrepCard(
+    liquidGlassBackdrop: GlassBackdrop?,
     onSettingsChanged: () -> Unit,
     onSendTest: (() -> Unit)?,
 ) {
@@ -2417,6 +2464,7 @@ private fun ReturnDayPrepCard(
 
     timePickerDialog(
         title = ReturnDayStr.prepTimeDialog(),
+        liquidGlassBackdrop = liquidGlassBackdrop,
         show = showTimeDialog,
         hour = hour,
         minute = minute,
@@ -2433,31 +2481,38 @@ private fun ReturnDayPrepCard(
 
     OverlayDialog(
         title = ReturnDayStr.prepTextLabel(),
-        summary = null,
         show = showTextDialog,
-        liquidGlassBackdrop = null,
+        liquidGlassBackdrop = liquidGlassBackdrop,
         onDismissRequest = { showTextDialog = false },
     ) {
         var draftText by remember(showTextDialog) { mutableStateOf(text) }
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(
-                ReturnDayStr.prepTextHint(),
-                style = MiuixTheme.textStyles.body1.copy(
-                    fontSize = 14.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                ),
-            )
-            NativeMiuixTextField(
-                draftText,
-                { draftText = it },
-                label = ReturnDayStr.prepTextLabel(),
+        // ★ 与官方同页的 EntryEditDialog 同一套做法：说明走 SmallTitle、输入框**包在 Card 里**。
+        //   裸 TextField 直接摆在对话框里没有卡片承载，视觉上就是一块悬空的输入条。
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            SmallTitle(text = ReturnDayStr.prepTextHint())
+            Card(
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(ReturnDayStr.cancel(), { showTextDialog = false }, modifier = Modifier.weight(1f))
+                insideMargin = PaddingValues(0.dp),
+            ) {
+                NativeMiuixTextField(
+                    draftText,
+                    { draftText = it },
+                    label = ReturnDayStr.prepTextLabel(),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 TextButton(
-                    ReturnDayStr.save(),
-                    {
+                    text = CommonStr.cancel(),
+                    onClick = { showTextDialog = false },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = CommonStr.ok(),
+                    onClick = {
                         // 空串/纯空白由数据层兜底成默认文案（getReturnDayPrepText 保证非空），
                         // 不在这里复制 DEFAULT_RETURN_DAY_PREP_TEXT —— 默认值只能有一份。
                         // 改文案不需要重排闹钟（正文是到点现取的），所以不调 onSettingsChanged。
@@ -2465,6 +2520,7 @@ private fun ReturnDayPrepCard(
                         text = repository.getReturnDayPrepText()
                         showTextDialog = false
                     },
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -2480,6 +2536,7 @@ private fun ReturnDayPrepCard(
  */
 @Composable
 private fun HolidayBalanceCard(
+    liquidGlassBackdrop: GlassBackdrop?,
     onSettingsChanged: () -> Unit,
     onSendTest: (() -> Unit)?,
 ) {
@@ -2542,6 +2599,7 @@ private fun HolidayBalanceCard(
 
     timePickerDialog(
         title = ReturnDayStr.balanceTimeDialog(),
+        liquidGlassBackdrop = liquidGlassBackdrop,
         show = showTimeDialog,
         hour = hour,
         minute = minute,
@@ -2558,9 +2616,8 @@ private fun HolidayBalanceCard(
 
     OverlayDialog(
         title = ReturnDayStr.startFromLabel(),
-        summary = null,
         show = showLeadDaysDialog,
-        liquidGlassBackdrop = null,
+        liquidGlassBackdrop = liquidGlassBackdrop,
         onDismissRequest = { showLeadDaysDialog = false },
     ) {
         var draftLead by remember(showLeadDaysDialog) { mutableIntStateOf(leadDays) }
@@ -2573,25 +2630,34 @@ private fun HolidayBalanceCard(
                 ),
             )
             NumberPicker(
-                draftLead,
-                { draftLead = it },
+                value = draftLead,
+                onValueChange = { draftLead = it },
                 range = 0..7,
                 visibleItemCount = 3,
-                itemHeight = 44.dp,
-                textStyle = pickerTextStyle(),
+                // 官方同页的滚轮都是 50dp、不传自定义 textStyle：我们原来手写 44dp + 22sp，
+                // 字比官方的大一号，两个对话框并排看就是「不是一个组件」。
+                itemHeight = 50.dp,
                 label = { if (it == 0) ReturnDayStr.leadDaysDaily() else ReturnDayStr.leadDaysOptionN(it) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(ReturnDayStr.cancel(), { showLeadDaysDialog = false }, modifier = Modifier.weight(1f))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 TextButton(
-                    ReturnDayStr.save(),
-                    {
+                    text = CommonStr.cancel(),
+                    onClick = { showLeadDaysDialog = false },
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(
+                    text = CommonStr.ok(),
+                    onClick = {
                         leadDays = draftLead
                         repository.setReturnDayBalanceLeadDays(draftLead)
                         onSettingsChanged()
                         showLeadDaysDialog = false
                     },
+                    colors = ButtonDefaults.textButtonColorsPrimary(),
                     modifier = Modifier.weight(1f),
                 )
             }
