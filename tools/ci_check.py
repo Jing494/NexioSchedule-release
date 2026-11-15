@@ -397,6 +397,15 @@ CHECKS = [
         [r"ReminderTestScreen\([^)]*liquidGlassBackdrop"],
     ),
     (
+        "应用内更新的 GitHub 源必须指向发布仓（不是已停用的旧仓）",
+        # 2026-11-15：旧仓 Jing494/NexioSchedule 的 Actions 被平台停用、不再出包，
+        # 发版迁到 Jing494/NexioSchedule-release。App 里那个写死的 URL 若还指向旧仓，
+        # 用户切到 GitHub 源时永远查不到新版本（且不会报错，只是"没有更新"）。
+        f"{J_APP}/ui/utils/UpdateChecker.kt",
+        [r"api\.github\.com/repos/Jing494/NexioSchedule-release/releases"],
+        [r"api\.github\.com/repos/Jing494/NexioSchedule/releases"],
+    ),
+    (
         "本复刻合并指南不能被合并删掉",
         "LOCAL-CHANGES.md",
         [r"本地定制改动清单"],

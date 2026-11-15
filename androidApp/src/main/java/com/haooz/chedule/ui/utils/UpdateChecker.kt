@@ -113,7 +113,9 @@ internal object UpdateChecker {
             // 上游包与本 fork 签名不同，下载过去会装不上/要求卸载重装。
             // 国内优先 Gitee（默认 source=gitee），GitHub 作为备选。
             val baseUrl = if (source == "github") {
-                "https://api.github.com/repos/Jing494/NexioSchedule/releases"
+                // ⚠ 必须指向**发布仓**，不是旧仓 Jing494/NexioSchedule ——
+                // 后者 2026-11-15 起 Actions 被平台停用、不再出包，去那里永远查不到新版本。
+                "https://api.github.com/repos/Jing494/NexioSchedule-release/releases"
             } else {
                 "https://gitee.com/api/v5/repos/jing494/nexio-schedule_fork/releases"
             }
