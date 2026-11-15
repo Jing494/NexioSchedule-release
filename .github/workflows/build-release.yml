@@ -244,12 +244,19 @@ jobs:
             echo "::error::读不到发版仓库 $COUNT_REPO 的 releases（token 权限不足？）—— 拒绝把序号从 1 重算"
             exit 1
           fi
-          GH_COUNT=$(gh api "repos/$COUNT_REPO/releases?per_page=100" --paginate \
-            --jq '.[].tag_name' | sed 's/.*-gh//' | grep -cE '^[0-9]+$' || true)
-          echo "发版仓库 $COUNT_REPO 已有 $GH_COUNT 个 gh 版本"
-          # 迁移到新仓库时旧仓库已发到 gh26；仓库变量 GH_BASE 用来接上序号。
-          GH_BASE="${GH_BASE:-0}"
-          GH_N=$((GH_BASE + GH_COUNT + 1))
+          # ★ 取**最大序号 + 1**，不是"发布条数 + 1"。
+          #   条数法只在"序号连续且从 1 开始"时才对；一旦出现跳号（迁移、手删 release、
+          #   GH_BASE 与已迁版本重复计数）就会倒退 —— 2026-11-15 就撞了两次：
+          #     ① GH_BASE=31 与迁移来的 gh27~gh31 重复计数 → 算出 gh37（跳了 5 个）
+          #     ② 改成 GH_BASE=0 后按条数算 → gh7 < 已有 gh37 → 直接撞单调性守卫
+          #   最大序号法天然单调，且不再依赖 GH_BASE。
+          MAX_GH=$(gh api "repos/$COUNT_REPO/releases?per_page=100" --paginate \
+            --jq '.[].tag_name' | sed -n 's/.*-gh\([0-9]\+\)$/\1/p' | sort -n | tail -1)
+          MAX_GH=${MAX_GH:-0}
+          # GH_BASE 只作为"发版仓库里还没有任何 gh 版本"时的起点（新仓冷启动）；
+          # 已有版本时它不参与运算，避免重复计数。
+          if [ "$MAX_GH" -gt 0 ]; then GH_N=$((MAX_GH + 1)); else GH_N=$(( ${GH_BASE:-0} + 1 )); fi
+          echo "发版仓库 $COUNT_REPO 历史最大序号=$MAX_GH → 本次 GH_N=$GH_N"
           FORK_CODE=$((VC * 100 + GH_N))
           # 版本号用第 4 段递增：1.5.6.1-gh1 / 1.5.6.2-gh2 …
           # 这样 App 的更新检查（比较数字段）才能认出"有新版"，同时 MAJOR.MINOR.PATCH 与上游保持对齐。
