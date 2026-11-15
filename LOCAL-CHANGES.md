@@ -726,3 +726,79 @@ merge-base 21919ead（1.6.7-1025）→ 上游 2659d244（1.7.1-1115）
 | `ReminderTestScreen.kt` | 卡片回 miuix `Card`；保留通道色条 / 状态点 / 按压反馈 / 连续卡 |
 | `AppRoutes.kt` `ReminderTestRoute` | content lambda 不再接 `backdrop`（改 `_`），并在原地写原因 |
 | 顶部内边距 | 回 `Scaffold.calculateTopPadding() + CollapsedHeight + 20dp`（上一版跳过 Scaffold 会吃掉状态栏） |
+
+---
+
+## 三十七、gh51 → gh52：两页文案进 i18n + 测试页补「通知通道」卡（2026-11-15）
+
+### 一句话
+
+把「提醒体检」与「通知与超级岛测试」两页的**全部硬编码中文**收进 i18n（54 条键），
+顺手补上用户要的三件事：测试页能读系统通道状态、设置项换成不重复的图标、发送按钮有了按压质感。
+
+### 为什么要收 i18n（不是"顺手美化"）
+
+App 支持 English，而这两页原先**整块是中文**。更糟的是测试页的状态点用
+`channel.contains("岛")` 判断走哪条通道 —— 切到 English 后文案变成 "Super Island"，
+里面根本没有「岛」字，判定**永远为假**，状态点在 English 下恒定显示成"没开岛"。
+
+改法：
+- 两个新对象 `i18n/ReminderHealthStr.kt`（31 条）、`i18n/ReminderTestStr.kt`（23 条）；
+- 宿主侧场景表 `ReminderTestScenario` 的 label/detail **类型从 `String` 改成 `L10n`**
+  （枚举常量只初始化一次，存已求值的字符串会把语言钉死在首次加载那一刻），
+  对外仍暴露 `labelText` / `detailText`；
+- 状态点改用宿主传入的 `islandActive: Boolean` 语义 flag，**不再解析文案**。
+
+> 教训：只要 UI 里有"从文案里 contains 关键字"的判定，i18n 一做就会静默失效。
+> 判定要么用语义值，要么就不要做。
+
+### 语言切换要能立刻生效
+
+`L10n` 在组合外求值（宿主的 `remember { ... }`），只 remember 一个 tick 的话，
+切语言后必须退出页面再进来才变。所以那几个 String 的 remember key 都带上了
+`AppLanguage.resolved`。
+
+### 「通知通道」卡（用户点名要的）
+
+原来页面只说「已发送」，用户点完没反应时无从下手。新卡读 `NotificationManager`
+里那三条通道（课前提醒 / 假期与返校 / 实时动态）的**真实状态**：
+
+| 状态 | 判据 | 颜色 |
+|---|---|---|
+| 正常 | importance > LOW | 绿 |
+| 静音 | importance == LOW（还能弹，但不响不震 —— 最容易误判成"没发"） | 琥珀 |
+| 已停用 | importance == NONE | 红 |
+| 未创建 | getNotificationChannel 返回 null | 灰 |
+
+「未创建」与「已停用」必须分开，这是提醒体检早就定下的口径（全新安装时全是未创建，
+报成"被停用"就是假警报）。底部给「打开通知设置」，走
+`ACTION_APP_NOTIFICATION_SETTINGS + EXTRA_APP_PACKAGE`（旧 extras 写法在新系统上会被忽略）。
+
+### 「发送」按钮：要质感，但**不能**用 softglass
+
+用户的原话是"点下去没有反馈感，能不能用 softglass 搞一个，我不想看黑色阴影"。
+黑阴影来源是 miuix 按钮自带的抬升感，但**这条路上不能真画玻璃**：
+本页 content 整块在 `DocumentPageScaffold` 的采样层里，玻璃采自己那一层就是 gh31 的闪崩。
+
+所以做成一颗**只负责好看**的胶囊：半透明染色 + 顶部白色高光渐变 + 0.5dp 描边，
+纯绘制、零采样。点击仍由整行承担（整行本来就可点，再嵌真按钮会有两个点击靶）。
+效果上"像玻璃"，但结构上不可能崩 —— 这条边界写进了 KDoc，防止下次被"顺手改成真玻璃"。
+
+### 设置项图标
+
+原来「通知与超级岛测试」直接复用了 `CourseReminderIcon()`，两个入口一模一样。
+换成 `MiuixIcons.Promotions`（横幅/推送语义）+ 蓝色底，与课程提醒的红底拉开。
+
+### 门禁 #34 的迁移（不是删）
+
+原文钉的是中文字面量 `"假期课程排除："`。文案进 i18n 后这个字面量不再出现在本文件里 —— 
+**不改门禁就会假红**。改成钉两件事：① 引用了 `ReminderHealthStr.holidayExclusion`；
+② 仍然读着上游的 `loadBeforeCourseExclusion`。语义等价，约束没弱。
+
+### 本轮踩的坑
+
+| 坑 | 后果 | 正确做法 |
+|---|---|---|
+| 用 Python 脚本做多段替换时中途异常 | `ReminderTestScreen.kt` 尾部被截断成 `text = ReminderTestStr.footnote(),\n}` —— 少两个实参与右括号 | 每次批量改完**立刻** `check_braces.py`；它比编译器快，且不需要 Linux |
+| 给 `Column` 的子项写 `matchParentSize()` | 编译期才能发现的作用域错误（`BoxScope` 专属） | 包一层 `Box` 再用；commonMain 里它本来就不需要 import |
+
