@@ -36,6 +36,7 @@ import com.haooz.chedule.i18n.CommonStr
 import com.haooz.chedule.i18n.L10n
 import com.haooz.chedule.i18n.PreferenceStr
 import com.haooz.chedule.i18n.ReminderStr
+import com.haooz.chedule.i18n.ReminderTestStr
 import com.haooz.chedule.i18n.SettingsStr
 import com.haooz.chedule.i18n.TimeCfgStr
 import com.haooz.chedule.ui.components.text.material.Text
@@ -136,6 +137,14 @@ internal fun SettingsSearchHeader(
 internal enum class SettingsSearchGroup(val label: L10n) {
     Schedule(SettingsStr.scheduleSettings),
     Reminder(SettingsStr.courseReminder),
+    /**
+     * 通知与超级岛测试。
+     *
+     * 单列一组（而不是并进 [Reminder]）：它在设置首页是**独立入口**、有自己的图标，
+     * 搜索结果的分组图标是按 group 取的 —— 并进 Reminder 会让它显示成课程提醒的红图标，
+     * 正是这轮刚修掉的"两个入口长得一样"。
+     */
+    ReminderTest(ReminderTestStr.settingsEntry),
     Widget(SettingsStr.homeScreenWidget),
     Personalization(SettingsStr.appPreferences),
     ImportExport(SettingsStr.importExport),
@@ -259,6 +268,18 @@ internal fun settingsSearchIndex(): List<SettingsSearchEntry> = buildList {
         entry(
             reminder, ReminderStr.viewAbbreviationPreview(), AppRoute.CourseReminder,
             summary = ReminderStr.viewAbbreviationPreviewSummary(),
+        )
+    )
+
+    // ── 通知与超级岛测试 ──
+    // ⚠ 这条曾经漏了：设置首页有入口、搜索索引里没有，于是搜「通知」「超级岛」都查不到。
+    // 现在由门禁 #49 盯着"首页入口 ⊆ 搜索索引"，再漏会直接红。
+    add(
+        entry(
+            SettingsSearchGroup.ReminderTest,
+            ReminderTestStr.settingsEntry(),
+            AppRoute.ReminderTest,
+            summary = ReminderTestStr.searchSummary(),
         )
     )
 
@@ -616,6 +637,7 @@ private fun SettingsSearchGroupIcon(group: SettingsSearchGroup) {
     when (group) {
         SettingsSearchGroup.Schedule -> ScheduleSettingsIcon()
         SettingsSearchGroup.Reminder -> CourseReminderIcon()
+        SettingsSearchGroup.ReminderTest -> ReminderTestIcon()
         SettingsSearchGroup.Widget -> HomeScreenWidgetIcon()
         SettingsSearchGroup.Personalization -> PersonalizationIcon()
         SettingsSearchGroup.ImportExport -> ImportExportIcon()

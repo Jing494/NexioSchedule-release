@@ -76,4 +76,6 @@ object ReminderTestStr {
     val pageTitle = L("通知与超级岛测试", "Notifications & Super Island Test")
     /** 设置页入口标题（短一点，配合图标） */
     val settingsEntry = L("通知与超级岛测试", "Notifications & Island")
+    /** 搜索索引里的副标题（会整句做关键词匹配） */
+    val searchSummary = L("发测试通知、查看系统通知通道状态", "Send test notifications and check channel state")
 }

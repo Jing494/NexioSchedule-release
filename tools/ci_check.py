@@ -45,6 +45,7 @@ F_APPSHELL = f"{J_SHARED}/ui/activities/main/CourseScheduleApp.kt"
 F_APPSHELL_STATE = f"{J_SHARED}/ui/activities/main/CourseScheduleAppState.kt"
 F_MAINSCHED = f"{J_SHARED}/ui/activities/classschedule/MainScheduleScreen.kt"
 F_SETTINGS = f"{J_SHARED}/ui/screens/SettingsScreen.kt"
+F_SETTINGS_SEARCH = f"{J_SHARED}/ui/screens/SettingsSearch.kt"
 F_REMSCREEN = f"{J_SHARED}/ui/activities/CourseReminderScreen.kt"
 F_REMCONTROLLER = f"{J_CORE}/data/platform/ReminderController.kt"   # 1.7.x 起 data 层按职责拆子包
 F_UPDCHECK = f"{J_APP}/ui/utils/UpdateChecker.kt"
@@ -497,11 +498,29 @@ def main():
         else:
             print("  ✓ %s：%s 出现 %d 次（期望 %d~%d）" % (label, symbol, total, lo, hi))
 
+    # ── 设置首页入口 ⊆ 搜索索引（集合比对，正则表达不了）──
+    # 真实反馈：设置首页有「通知与超级岛测试」入口，但搜索索引里没有这条，
+    # 于是搜「通知」「超级岛」都查不到 —— 用户以为功能不存在。
+    # 这类"新加一个入口、忘了同步索引"只能靠集合比对发现，所以单独做成一条。
+    home = read(F_SETTINGS) or ""
+    idx = read(F_SETTINGS_SEARCH) or ""
+    home_routes = set(re.findall(r"openRoute\(AppRoute\.(\w+)\)", home))
+    idx_routes = set(re.findall(r"AppRoute\.(\w+)", idx))
+    missing = sorted(home_routes - idx_routes)
+    if not home_routes:
+        failures.append((0, "设置首页入口 ⊆ 搜索索引", ["首页一个 openRoute 都没扫到，正则或路径过期了"]))
+        print("  ✗ 设置首页入口 ⊆ 搜索索引：首页入口扫描为空（脚本过期）")
+    elif missing:
+        failures.append((0, "设置首页入口 ⊆ 搜索索引", ["没进索引: %s" % ", ".join(missing)]))
+        print("  ✗ 设置首页入口 ⊆ 搜索索引 —— 以下入口搜不到: %s" % ", ".join(missing))
+    else:
+        print("  ✓ 设置首页入口 ⊆ 搜索索引（%d 个入口全部可搜到）" % len(home_routes))
+
     print()
     if failures:
         print("❌ 不变量核对未通过：%d 条。这些约束对应的都是真机踩过的坑，请先修源码再发版。" % len(failures))
         return 1
-    print("✅ 全部 %d 条不变量通过" % (len(CHECKS) + len(counts)))
+    print("✅ 全部 %d 条不变量通过" % (len(CHECKS) + len(counts) + 1))
     return 0
 
 
