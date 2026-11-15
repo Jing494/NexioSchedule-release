@@ -69,6 +69,7 @@ import com.haooz.chedule.data.util.plusDays
 import com.haooz.chedule.data.util.todayLocalDate
 import com.haooz.chedule.i18n.CommonStr
 import com.haooz.chedule.i18n.HolidayStr
+import com.haooz.chedule.i18n.ReturnDayStr
 import com.haooz.chedule.i18n.orDefaultName
 import com.haooz.chedule.ui.basic.LiquidTopBarButton
 import com.haooz.chedule.ui.basic.OverlayDropdownMenu
@@ -628,9 +629,8 @@ fun HolidaySettingsScreen(
 
                 item {
                     SectionTitleRow(
-                        text = "假期余额提醒",
-                        description = "• 假期期间每天一条，含假期最后一天（不占超级岛/实时动态的位置）\n" +
-                            "• 独立开关：不再挂在「节假日课程排除」下面 —— 关掉豁免不会连带关掉余额提醒",
+                        text = ReturnDayStr.balanceSection(),
+                        description = ReturnDayStr.balanceSectionDesc(),
                         liquidGlassBackdrop = liquidGlassBackdrop,
                     )
                     HolidayBalanceCard(
@@ -711,20 +711,20 @@ fun HolidaySettingsScreen(
                         )
                     }
                 }
+
+                item {
+                    SectionTitleRow(
+                        text = ReturnDayStr.prepSection(),
+                        description = ReturnDayStr.prepSectionDesc(),
+                        liquidGlassBackdrop = liquidGlassBackdrop,
+                    )
+                    ReturnDayPrepCard(
+                        onSettingsChanged = onHolidayDataChanged,
+                        onSendTest = onSendReturnDayPrepTest,
+                    )
+                }
             }
 
-            item {
-                SectionTitleRow(
-                    text = "返校准备清单",
-                    description = "• 返校日到点推一条普通通知，内容自己写\n" +
-                        "• 独立开关：不依赖「节假日课程排除」，关掉豁免它照样会响",
-                    liquidGlassBackdrop = liquidGlassBackdrop,
-                )
-                ReturnDayPrepCard(
-                    onSettingsChanged = onHolidayDataChanged,
-                    onSendTest = onSendReturnDayPrepTest,
-                )
-            }
         }
     }
 
@@ -2250,9 +2250,48 @@ private fun pickerTextStyle() = MiuixTheme.textStyles.body1.copy(
 
 // ============ 假期余额提醒 / 返校准备清单（本地定制，上游没有） ============
 
+/** 开关打开时的强调色（与提醒体检卡「通过」同一族绿）。 */
+private val HolidayOnAccent = Color(0xFF3BA55D)
+/** 开关关闭时灰掉（不是红：关闭是正常状态，不是错误）。 */
+private val HolidayOffAccent = Color(0xFF8A8A8E)
+
+
 // commonMain 没有 JVM 的 String.format（旧代码用的 "%02d:%02d"），改成 padStart 手写补零
 private fun twoDigits(value: Int): String = value.toString().padStart(2, '0')
 private fun clockLabel(hour: Int, minute: Int): String = "${twoDigits(hour)}:${twoDigits(minute)}"
+
+
+/**
+ * 卡内说明脚注：左侧一条短色条 + 说明文字。
+ *
+ * 与「通知与超级岛测试」页的场景卡、提醒体检卡同一套语言（色条 + 说明），
+ * 不再是原来那种光秃秃一段小字 —— 页内其它卡（上游那几张）本来就靠 Card 分隔，
+ * 本地加的这两张卡没有分组感，脚注会同「提醒时间」等设置项糊成一片。
+ *
+ * @param accent 色条颜色（跟随该卡的开关状态）
+ */
+@Composable
+private fun CardFootnote(text: String, accent: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Box(
+            modifier = Modifier
+                .padding(top = 3.dp)
+                .size(width = 3.dp, height = 16.dp)
+                .clip(ContinuousRoundedRectangle(2.dp))
+                .background(accent.copy(alpha = 0.75f))
+        )
+        Spacer(Modifier.width(10.dp))
+        Text(
+            text = text,
+            style = MiuixTheme.textStyles.body1.copy(fontSize = 13.sp),
+            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
 
 /** 时/分两个滚轮；余额与清单共用（旧实现里就是文件级 private，别各自复制一份）。 */
 @Composable
@@ -2297,9 +2336,9 @@ private fun timePickerDialog(
                 )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton("取消", onDismiss, modifier = Modifier.weight(1f))
+                TextButton(ReturnDayStr.cancel(), onDismiss, modifier = Modifier.weight(1f))
                 TextButton(
-                    "保存",
+                    ReturnDayStr.save(),
                     { onConfirm(draftHour, draftMinute) },
                     modifier = Modifier.weight(1f),
                 )
@@ -2336,12 +2375,12 @@ private fun ReturnDayPrepCard(
     ) {
         Column {
             SwitchPreference(
-                title = "返校准备清单",
+                title = ReturnDayStr.prepTitle(),
                 summary = if (enabled) {
-                    "返校日 ${clockLabel(hour, minute)} 提醒要带的东西"
+                    ReturnDayStr.prepSummaryOn(clockLabel(hour, minute))
                 } else {
                     // 不能写死"中午"：提醒时间可自定义，关掉时也该反映真实时间
-                    "返校日 ${clockLabel(hour, minute)} 提醒要带的东西（默认关闭）"
+                    ReturnDayStr.prepSummaryOff(clockLabel(hour, minute))
                 },
                 checked = enabled,
                 onCheckedChange = { checked ->
@@ -2352,37 +2391,32 @@ private fun ReturnDayPrepCard(
             )
             if (enabled) {
                 ArrowPreference(
-                    title = "提醒时间",
+                    title = ReturnDayStr.reminderTime(),
                     summary = clockLabel(hour, minute),
                     onClick = { showTimeDialog = true },
                 )
                 ArrowPreference(
-                    title = "清单内容",
+                    title = ReturnDayStr.prepTextLabel(),
                     summary = text,
                     onClick = { showTextDialog = true },
                 )
                 if (onSendTest != null) {
                     ArrowPreference(
-                        title = "立即发一条测试",
-                        summary = "随时点，不影响每天只发一次的去重",
+                        title = ReturnDayStr.sendTestNow(),
+                        summary = ReturnDayStr.sendTestNowSummary(),
                         onClick = { onSendTest() },
                     )
                 }
             }
-            Text(
-                "• 触发条件：当天休息 且 次日要上课（普通周日、假期最后一天）\n" +
-                    "• 独立开关：不依赖「节假日课程排除」，关掉豁免它照样会响",
-                style = MiuixTheme.textStyles.body1.copy(
-                    fontSize = 13.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            CardFootnote(
+                text = ReturnDayStr.prepFootnote(),
+                accent = if (enabled) HolidayOnAccent else HolidayOffAccent,
             )
         }
     }
 
     timePickerDialog(
-        title = "清单提醒时间",
+        title = ReturnDayStr.prepTimeDialog(),
         show = showTimeDialog,
         hour = hour,
         minute = minute,
@@ -2398,7 +2432,7 @@ private fun ReturnDayPrepCard(
     )
 
     OverlayDialog(
-        title = "清单内容",
+        title = ReturnDayStr.prepTextLabel(),
         summary = null,
         show = showTextDialog,
         liquidGlassBackdrop = null,
@@ -2407,7 +2441,7 @@ private fun ReturnDayPrepCard(
         var draftText by remember(showTextDialog) { mutableStateOf(text) }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                "返校日按上面设定的时间推送这条内容，用 / 分隔要带的东西",
+                ReturnDayStr.prepTextHint(),
                 style = MiuixTheme.textStyles.body1.copy(
                     fontSize = 14.sp,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -2416,13 +2450,13 @@ private fun ReturnDayPrepCard(
             NativeMiuixTextField(
                 draftText,
                 { draftText = it },
-                label = "清单内容",
+                label = ReturnDayStr.prepTextLabel(),
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton("取消", { showTextDialog = false }, modifier = Modifier.weight(1f))
+                TextButton(ReturnDayStr.cancel(), { showTextDialog = false }, modifier = Modifier.weight(1f))
                 TextButton(
-                    "保存",
+                    ReturnDayStr.save(),
                     {
                         // 空串/纯空白由数据层兜底成默认文案（getReturnDayPrepText 保证非空），
                         // 不在这里复制 DEFAULT_RETURN_DAY_PREP_TEXT —— 默认值只能有一份。
@@ -2457,7 +2491,7 @@ private fun HolidayBalanceCard(
     var showTimeDialog by remember { mutableStateOf(false) }
     var showLeadDaysDialog by remember { mutableStateOf(false) }
 
-    val leadSummary = if (leadDays <= 0) "假期期间每天" else "只在最后 $leadDays 天"
+    val leadSummary = if (leadDays <= 0) ReturnDayStr.leadDaysDaily() else ReturnDayStr.leadDaysLastN(leadDays)
 
     Card(
         cornerRadius = 20.dp,
@@ -2466,12 +2500,12 @@ private fun HolidayBalanceCard(
     ) {
         Column {
             SwitchPreference(
-                title = "假期余额提醒",
+                title = ReturnDayStr.balanceTitle(),
                 summary = when {
-                    !enabled -> "已关闭"
+                    !enabled -> ReturnDayStr.balanceSummaryDisabled()
                     // 摘要必须跟着「从哪天开始提醒」走，否则开了"只在最后 N 天"却仍写着"每天"，自相矛盾
-                    leadDays <= 0 -> "假期中每天 ${clockLabel(hour, minute)} 提醒还剩几天"
-                    else -> "只在假期最后 $leadDays 天的 ${clockLabel(hour, minute)} 提醒"
+                    leadDays <= 0 -> ReturnDayStr.balanceSummaryDaily(clockLabel(hour, minute))
+                    else -> ReturnDayStr.balanceSummaryLastDays(leadDays, clockLabel(hour, minute))
                 },
                 checked = enabled,
                 onCheckedChange = { checked ->
@@ -2482,39 +2516,32 @@ private fun HolidayBalanceCard(
             )
             if (enabled) {
                 ArrowPreference(
-                    title = "提醒时间",
+                    title = ReturnDayStr.reminderTime(),
                     summary = clockLabel(hour, minute),
                     onClick = { showTimeDialog = true },
                 )
                 ArrowPreference(
-                    title = "从哪天开始提醒",
+                    title = ReturnDayStr.startFromLabel(),
                     summary = leadSummary,
                     onClick = { showLeadDaysDialog = true },
                 )
                 if (onSendTest != null) {
                     ArrowPreference(
-                        title = "立即发一条测试",
-                        summary = "随时点，不影响每天只发一次的去重",
+                        title = ReturnDayStr.sendTestNow(),
+                        summary = ReturnDayStr.sendTestNowSummary(),
                         onClick = { onSendTest() },
                     )
                 }
             }
-            Text(
-                "• 假期期间每天都发一条，含假期最后一天（以前最后一天会漏掉）\n" +
-                    "• 最后一天的文案跟「假期末天课程排除」开关走：" +
-                    "开着说「收拾一下准备返校」，关着只说「好好休息」\n" +
-                    "• 不占超级岛/实时动态的位置，只是普通通知",
-                style = MiuixTheme.textStyles.body1.copy(
-                    fontSize = 13.sp,
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
-                ),
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            CardFootnote(
+                text = ReturnDayStr.balanceFootnote(),
+                accent = if (enabled) HolidayOnAccent else HolidayOffAccent,
             )
         }
     }
 
     timePickerDialog(
-        title = "余额提醒时间",
+        title = ReturnDayStr.balanceTimeDialog(),
         show = showTimeDialog,
         hour = hour,
         minute = minute,
@@ -2530,7 +2557,7 @@ private fun HolidayBalanceCard(
     )
 
     OverlayDialog(
-        title = "从哪天开始提醒",
+        title = ReturnDayStr.startFromLabel(),
         summary = null,
         show = showLeadDaysDialog,
         liquidGlassBackdrop = null,
@@ -2539,7 +2566,7 @@ private fun HolidayBalanceCard(
         var draftLead by remember(showLeadDaysDialog) { mutableIntStateOf(leadDays) }
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                "默认（每天）整个假期都会提醒；选「最后 N 天」则只在剩余天数少于 N 天时提醒。",
+                ReturnDayStr.leadDaysDialogHint(),
                 style = MiuixTheme.textStyles.body1.copy(
                     fontSize = 14.sp,
                     color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
@@ -2552,13 +2579,13 @@ private fun HolidayBalanceCard(
                 visibleItemCount = 3,
                 itemHeight = 44.dp,
                 textStyle = pickerTextStyle(),
-                label = { if (it == 0) "每天" else "最后${it}天" },
+                label = { if (it == 0) ReturnDayStr.leadDaysDaily() else ReturnDayStr.leadDaysOptionN(it) },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton("取消", { showLeadDaysDialog = false }, modifier = Modifier.weight(1f))
+                TextButton(ReturnDayStr.cancel(), { showLeadDaysDialog = false }, modifier = Modifier.weight(1f))
                 TextButton(
-                    "保存",
+                    ReturnDayStr.save(),
                     {
                         leadDays = draftLead
                         repository.setReturnDayBalanceLeadDays(draftLead)
