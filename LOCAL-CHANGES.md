@@ -806,3 +806,56 @@ App 支持 English，而这两页原先**整块是中文**。更糟的是测试�
 | 用 Python 脚本做多段替换时中途异常 | `ReminderTestScreen.kt` 尾部被截断成 `text = ReminderTestStr.footnote(),\n}` —— 少两个实参与右括号 | 每次批量改完**立刻** `check_braces.py`；它比编译器快，且不需要 Linux |
 | 给 `Column` 的子项写 `matchParentSize()` | 编译期才能发现的作用域错误（`BoxScope` 专属） | 包一层 `Box` 再用；commonMain 里它本来就不需要 import |
 
+
+---
+
+## 三十八、跟上游 1.7.2-1116（8ab733fa，2026-11-16）· 首启引导接管隐私同意
+
+> 完整经过见 `../HANDOFF.md` §二十四。这里只记**下次跟版要照着做**的部分。
+
+### 一、上游这轮的两件"地基级"改动
+
+1. **隐私同意从独立弹窗搬进首启引导**
+   - 新增 `OnboardingFlow` / `OnboardingScreen` / `OnboardingWelcomeScreen`（约 2600 行）
+   - `PrivacyConsentScreen.kt` 删除；`PrivacyConsent.CURRENT_VERSION` **1 → 2**
+   - 三个宿主（Android / iOS / 鸿蒙）的接法统一成「观察 `PrivacyConsent.consented`，不再自己弹窗」
+   - ⚠ 以后**不要再往宿主里加"未同意就弹 PrivacyConsentScreen"的兜底** —— 会被引导盖住，
+     而且会绕过「协议页点继续才算同意」这个唯一入口。
+
+2. **上课提醒的节次范围改成时间窗**
+   - `CourseTimeResolver.isInReminderSections(course, repo, start, end)`：
+     范围 → 「起始节上课 ~ 结束节下课」，再比课程**自己的上课时间**（自定义时间的课同样受约束）
+   - `CourseReminderHelper.isCourseInReminderSections` 变成一行委托（但**签名多了 `repository`**）
+   - 范围外（`rangeLimited && course.id !in reminderIds`）只是**不提醒**，仍参与连堂「上一节」判定
+
+### 二、本 fork 与这两件事的关系（别改错方向）
+
+| 本 fork 的东西 | 与上游新实现的关系 |
+|---|---|
+| 返校节次豁免 / 假期首末课程排除 | **走另一条路**：`HolidayCourseExclusion` + `HolidayEndCourseExclusion` + 上游那个开关。不经过 `isInReminderSections`，两边互不影响 |
+| 假期余额 / 返校准备清单 / 「明天返校」实时动态 | 在 `CourseReminderHelper` 的假日段落，自己排精确闹钟。**不读** `getPreClassReminderStartSection`，所以这轮口径变化不影响它 |
+| 提醒体检（本 fork 自建页） | 说明项里出现的「%d~%d 节」是**假期排除**的节次范围，不是提醒范围，文案不用改 |
+
+### 三、这轮踩到的两个坑（下次跟版前先自查）
+
+1. **`divergence-watch.txt` 的路径会随上游搬家而静默失效。**
+   上游 1.7.x 把备份实现搬进 `core/…/data/repo/BackupTransfer.kt`、把课表卡搬进 `ui-shared/src/portable/…`，
+   而清单里还是旧路径 —— `grep -xF` 精确匹配，**命不中也不报错**，守卫等于关了。
+   **每次跟版后跑一遍**：清单每一行都必须 `[ -e "$p" ]` 成立，否则就是坏的。
+2. **本 fork 删掉的接口成员，其它平台的实现可能还 override 着。**
+   上一轮删了 `ScheduleChangeSink.syncWearable`，鸿蒙那份 `OhosScheduleEffects` 没跟着删。
+   鸿蒙工程不在 Android CI 里 → **编译错误潜伏了一整轮**。
+   **自查命令**：`grep -rn "override fun" ohos/ | 逐个对 core 接口`，或干脆每次跟版后本地 `./gradlew` 不了时用符号反查。
+
+### 四、本轮为对齐上游顺手修的两处
+
+- `CourseReminderScreen` 的节次范围弹窗：三个 `NumberPicker` 的**值 + range 两端**都夹进 `1..totalSections`。
+  上游这轮正在修同款「空区间 → `require` 崩」，本 fork 这个自建页漏了。
+- `OhosScheduleEffects` 删 `override fun syncWearable`（见坑 2）。
+
+### 五、门禁与清单的现状
+
+- `tools/ci_check.py`：**49 条**，本轮全绿。新增不变量请继续加在这里（每条都要能复现一个真坑）。
+- `tools/divergence-watch.txt`：**已按真实路径重写**（14 行），新增 `BackupTransfer.kt` 与 `SoftGlassSurface.kt`。
+  本轮命中 6 个（`build.gradle.kts` / `CourseReminderHelper` / `CourseRepository` /
+  `CourseReminderScreen` / `CourseCard` / `CourseScheduleApp`）—— 全是**人工过了一眼确认无误**后才继续的。
