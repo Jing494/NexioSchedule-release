@@ -291,11 +291,14 @@ fun CourseReminderScreen(
     var showTimeDialog by remember { mutableStateOf(false) }
     var tempMinutes by remember { mutableIntStateOf(preClassReminderMinutes) }
     var showSectionRangeDialog by remember { mutableStateOf(false) }
-    // 结束节为 0 表示「到最后」，UI 上落到最后一节
-    var tempStartSection by remember { mutableIntStateOf(preClassReminderStartSection) }
+    // 结束节为 0 表示「到最后」，UI 上落到最后一节；两个临时值都夹进当前总节数
+    var tempStartSection by remember(totalSections) {
+        mutableIntStateOf(preClassReminderStartSection.coerceIn(1, totalSections))
+    }
     var tempEndSection by remember(totalSections) {
         mutableIntStateOf(
-            if (preClassReminderEndSection <= 0) totalSections else preClassReminderEndSection
+            if (preClassReminderEndSection <= 0) totalSections
+            else preClassReminderEndSection.coerceIn(1, totalSections)
         )
     }
     var tempHour by remember { mutableIntStateOf(nextDayReminderHour) }
@@ -1806,8 +1809,11 @@ fun CourseReminderScreen(
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        // 三处区间都夹一次：旧值可能落在当前总节数之外（节数被调小），
+                        // 空区间会让 NumberPicker 直接 require 失败崩掉 —— 上游这对
+                        // AddCourseDialog / AddEditCourseBottomSheet / TimeConfigEditScreen 都修过。
                         NumberPicker(
-                            value = tempStartSection,
+                            value = tempStartSection.coerceIn(1, totalSections),
                             onValueChange = {
                                 tempStartSection = it
                                 if (tempEndSection < it) tempEndSection = it
@@ -1826,9 +1832,9 @@ fun CourseReminderScreen(
                             modifier = Modifier.padding(horizontal = 12.dp)
                         )
                         NumberPicker(
-                            value = tempEndSection.coerceIn(tempStartSection, totalSections),
+                            value = tempEndSection.coerceIn(tempStartSection.coerceIn(1, totalSections), totalSections),
                             onValueChange = { tempEndSection = it.coerceAtLeast(tempStartSection) },
-                            range = tempStartSection..totalSections,
+                            range = tempStartSection.coerceIn(1, totalSections)..totalSections,
                             visibleItemCount = 3,
                             itemHeight = 60.dp,
                             label = { ReminderStr.sectionN(it) },
@@ -1863,6 +1869,8 @@ fun CourseReminderScreen(
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 val start = tempStartSection.coerceIn(1, totalSections)
+                                // 选到最后一节即「全部节次」（存 0 = 不限），与列表里的文案一致；
+                                // 存真实节数的话，日后调大总节数会把它变成「只到第 N 节」
                                 val end = tempEndSection
                                     .coerceIn(start, totalSections)
                                     .let { if (it >= totalSections) 0 else it }

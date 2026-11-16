@@ -49,7 +49,10 @@ import com.haooz.chedule.ui.utils.LocalHostOverlays
 import com.haooz.chedule.ui.utils.LocalNativeDocumentChrome
 import com.haooz.chedule.ui.utils.NativeDocumentAction
 import com.haooz.chedule.ui.utils.NativeDocumentChrome
+import com.haooz.chedule.ui.utils.THEME_MODE_DARK
+import com.haooz.chedule.ui.utils.THEME_MODE_LIGHT
 import com.haooz.chedule.ui.utils.isAppDarkTheme
+import com.haooz.chedule.ui.utils.readThemeModePref
 import com.haooz.chedule.ui.utils.rememberScreenCornerRadiiPx
 import platform.UIKit.UIViewController
 import top.yukonga.miuix.kmp.theme.MiuixTheme
@@ -355,6 +358,15 @@ class IosAppHost {
 
     /** System appearance comes from SwiftUI above all app and wallpaper style overrides. */
     fun updateSystemDarkTheme(isDark: Boolean) {
+        // 首帧前先按已保存的主题把原生 chrome 播好种：固定深/浅色的用户冷启动时，
+        // UITabBar 与导航栏不会先闪一下系统色。之后的页面/壁纸覆盖仍以 navigation.isDark 为准。
+        if (systemDarkTheme == null) {
+            navigation.isDark = when (readThemeModePref()) {
+                THEME_MODE_DARK -> true
+                THEME_MODE_LIGHT -> false
+                else -> isDark
+            }
+        }
         systemDarkTheme = isDark
     }
 
