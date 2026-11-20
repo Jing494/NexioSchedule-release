@@ -859,3 +859,66 @@ App 支持 English，而这两页原先**整块是中文**。更糟的是测试�
 - `tools/divergence-watch.txt`：**已按真实路径重写**（14 行），新增 `BackupTransfer.kt` 与 `SoftGlassSurface.kt`。
   本轮命中 6 个（`build.gradle.kts` / `CourseReminderHelper` / `CourseRepository` /
   `CourseReminderScreen` / `CourseCard` / `CourseScheduleApp`）—— 全是**人工过了一眼确认无误**后才继续的。
+
+---
+
+## 三十九、跟上游 1.7.3（7f8cbd71，2026-11-20）· `:miuix` 整体移除，控件迁到 NexioUI
+
+> 完整经过见 `../HANDOFF.md` §二十五。本文件只记**下次跟版要照着做**的部分。
+
+### 一、这轮上游动的是「库」，不是「页面」
+
+| 上游动作 | 影响面 |
+|---|---|
+| **删掉本地 `:miuix` fork 模块**（163 个文件），控件全部改成外部库 **NexioUI 0.1.1** | 436 个 .kt 文件 / 1612 条 import 要重指；包名从 `top.yukonga.miuix.kmp.*` 变 `com.haooz.nexioui.*` |
+| 柔光玻璃加大小写：`HaoZai000.softglass` → `HaoZai000.SoftGlass`，版本 0.1.3 | 与 NexioUI 是同一个 JitPack 组，`settings.gradle.kts` 的 substitution 也改了 |
+| 12 个页面从 `ui/screens/` 搬进 `ui/activities/{setting,oobe,eduimport}/` | **门禁里的路径常量必须跟着搬**（见下） |
+| `ScheduleChangeSink` 又**加回** `syncWearable`（上游恢复了手表蓝牙导出） | 本 fork 维持移除：iOS 那份空实现要再删一次 |
+
+### 二、本 fork 自建页的迁移清单（**每次上游动 NexioUI 都要重看**）
+
+这轮真正需要「翻译」的只有本 fork 自己写的那几个文件——上游文件 Git 会替我们迁好，自建页不会：
+
+| 文件 | 改了什么 |
+|---|---|
+| `ui/screens/ReminderTestScreen.kt` | 8 个 import（Card / Scaffold / NumberPicker / CollapsibleTopAppBar* / overScrollVertical / scrollEndHaptic），`MiuixTheme` → `NexioTheme` |
+| `ui/activities/setting/SettingsScreen.kt` | `MiuixIcons.Promotions` → `NexioIcons.Promotions`（**库里有这个图标，别自己画**） |
+| `ui/activities/CourseReminderScreen.kt` | 体检卡里 19 处 `MiuixTheme` → `NexioTheme` |
+| `ui/activities/HolidaySettingsScreen.kt` / `today/TodayScreen.kt` | 各 8 / 2 处 `MiuixTheme` → `NexioTheme` |
+
+**API 兼容性已核对（不是照调用点猜的）**：`NexioTheme.colorScheme` 有 `onSurface` / `onSurfaceVariantSummary` /
+`onSurfaceVariantActions` / `primary` 等同名字段；`NexioTextStyles` 有 `body1`/`body2`/`footnote1`/`title3`/`title4`；
+`Card` 的签名**只差参数顺序**（`onClick` 从第 9 位挪到第 1 位，本 fork 全用具名参数，不受影响）。
+
+### 三、这轮踩到的四个坑（都不是"解冲突"能解决的）
+
+1. **构建脚本里的模块列表不会跟着模块一起删。**
+   根 `build.gradle.kts` 的 `purityModules = listOf("core", "miuix", "ui-shared")` 还留着 `miuix`，
+   而 `sources.from(file("miuix/src/..."))` 指向不存在的目录 → Gradle **配置期**就失败
+   （不是编译错，是连编译都没开始，日志里只有一句 "Directory ... does not exist"）。
+   → 已加门禁「:miuix 模块不许复活」，三处一起看（目录 / `settings.gradle.kts` / `purityModules`）。
+2. **门禁的路径常量会随上游搬家静默过期。**
+   `F_SETTINGS` / `F_SETTINGS_SEARCH` 还指着 `ui/screens/`，搬走后读不到文件 →
+   表现是「首页入口扫描为空（脚本过期）」，看着像源码问题。已有 `[00] preflight` 兜住这一类，
+   **每次跟版先看 [00] 是不是绿的**。
+3. **上游新加的设置入口同样会漏进搜索索引。**
+   这轮上游加了「AI 功能」（`AppRoute.AiFeatures`），索引里没有 → 门禁 #49 集合比对直接抓出来
+   （这条门禁正是上一轮为同一个坑加的，这次立刻兑现了）。
+4. **接口成员「删了又加回」比「只删」更危险。**
+   上一轮本 fork 删了 `syncWearable`，这一轮上游又加回；Git 会把 `core` 接口恢复成本 fork 删过的样子
+   （因为我们这边是删除方），但 **IOS / 鸿蒙的实现在上游那边又长回来了**。
+   → 每次跟版后跑：`grep -rn "override fun" ohos/ ui-shared/src/iosMain | 逐个对 core 接口`。
+
+### 四、门禁与清单现状
+
+- `tools/ci_check.py`：**50 条**（新增「:miuix 不许复活」），全绿；反向验证过会报红。
+- `tools/divergence-watch.txt`：**17 行**，新增本 fork 三个自建页（ReminderTestScreen / SettingsScreen / SettingsSearch）。
+  本轮被上游命中的有 11 个文件，逐个人工过了一遍（详见 HANDOFF §二十五 的复核表）。
+- `tools/check_braces.py`：771 个 .kt 全一致（合并提交要同时跟两个父比，脚本已支持）。
+
+### 五、留给下一轮的判断
+
+上游把「课中岛 B 区」从「正在上课 / 距下课倒计时 二选一」改成了**固定倒计时**。
+本 fork 那套 `island_in_class_right_mode` 联动（课前 B 区选择映射到课中）因此**上游侧语义变了**：
+我们保留了设置项与映射函数（`effectiveInClassRightMode`），但上游的渲染路径已经不吃这个键。
+**下次真机验证时如果发现该开关无效，那是上游的产品决定，不是回归**——要恢复二选一得自己接回渲染分支。

@@ -521,6 +521,40 @@ def main():
         else:
             print("  ✓ 已移除的 :miuix 模块没有复活（控件走 NexioUI）")
 
+    # ── 上游换库后「用了符号却没 import」会一直潜伏到编译 ──
+    # 1.7.3 上游把 :miuix 删了、控件迁到 NexioUI。Git 只合 import 段，
+    # 而本 fork 自建代码里的**调用点**不会跟着变 —— 表现不是 import 悬空
+    # （import 被上游删干净了），而是「用了一个当前 import 里没有的名字」。
+    # 这类错误静态扫描比等 CI 快 20 分钟，所以钉在这里。
+    # 注意：只有这些名字**在本仓库里没有定义**时才判为缺失（NexioTheme 等本项目自己的实现不算）。
+    MIGRATED = (
+        "TextButton", "FlatTextButton", "NativeMiuixTextField", "NativeTextField",
+        "NumberPicker", "SmallTitle", "CardExpand", "DateRangeCalendar",
+        "OverlayDialog", "Scaffold", "MiuixTheme", "MiuixIcons", "NexioTheme", "NexioIcons",
+    )
+    defined_here = set()
+    for _name, text in walk_kt():
+        defined_here.update(re.findall(r"^(?:internal |private |public )?(?:fun|class|object|val) ([A-Za-z_]\w*)", text, re.M))
+    missing_imports = []
+    for name, text in walk_kt():
+        imported = set()
+        for m in re.finditer(r"^import\s+([\w.]+)(?:\s+as\s+(\w+))?", text, re.M):
+            imported.add(m.group(2) or m.group(1).split(".")[-1])
+        local = set(re.findall(r"^(?:internal |private |public )?(?:fun|class|object|val|interface) ([A-Za-z_]\w*)", text, re.M))
+        for sym in MIGRATED:
+            if sym in imported or sym in local or sym in defined_here:
+                continue
+            # 只认「真的用作调用/构造」，KDoc 里的 `Scaffold(topBar)` 不算（前面必须是行首或非反引号）
+            if re.search(r"(?<![\w.`])" + sym + r"\s*[(.]", text):
+                missing_imports.append("%s 用了 %s 但没 import" % (name, sym))
+    if missing_imports:
+        failures.append((0, "上游换库后没有「用了但没 import」的符号", missing_imports))
+        print("  ✗ 上游换库后没有「用了但没 import」的符号：")
+        for m in missing_imports[:10]:
+            print("        %s" % m)
+    else:
+        print("  ✓ 上游换库后没有「用了但没 import」的符号")
+
     # ── 设置首页入口 ⊆ 搜索索引（集合比对，正则表达不了）──
     # 真实反馈：设置首页有「通知与超级岛测试」入口，但搜索索引里没有这条，
     # 于是搜「通知」「超级岛」都查不到 —— 用户以为功能不存在。

@@ -95,6 +95,7 @@ import com.haooz.nexioui.dropdown.DropdownEntry
 import com.haooz.nexioui.dropdown.DropdownItem
 import com.haooz.nexioui.textfield.TextField
 import com.haooz.nexioui.numberpicker.NumberPicker
+import com.haooz.nexioui.nativetextfield.NativeTextField
 import com.haooz.nexioui.scaffold.Scaffold
 import com.haooz.nexioui.smalltitle.SmallTitle
 import com.haooz.nexioui.button.FlatTextButton
@@ -1617,16 +1618,16 @@ private fun SectionRangeDialog(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 FlatTextButton(
-                    text = CommonStr.cancel(),
-                    onClick = {
+                    CommonStr.cancel(),
+                    {
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
                 )
                 FlatTextButton(
-                    text = CommonStr.ok(),
-                    onClick = {
+                    CommonStr.ok(),
+                    {
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         onSave()
                     },
@@ -2315,17 +2316,17 @@ private fun timePickerDialog(
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TextButton(
-                    text = CommonStr.cancel(),
-                    onClick = {
+                FlatTextButton(
+                    CommonStr.cancel(),
+                    {
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(
-                    text = CommonStr.ok(),
-                    onClick = {
+                FlatTextButton(
+                    CommonStr.ok(),
+                    {
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         onConfirm(draftHour, draftMinute)
                     },
@@ -2438,10 +2439,12 @@ private fun ReturnDayPrepCard(
                 modifier = Modifier.fillMaxWidth(),
                 insideMargin = PaddingValues(0.dp),
             ) {
-                NativeMiuixTextField(
-                    draftText,
-                    { draftText = it },
-                    label = ReturnDayStr.prepTextLabel(),
+                // 1.7.3 起上游统一用 NativeTextField（原 NativeMiuixTextField 随 :miuix 一起删除）。
+                // label → hint：这一栏本来就是把提示当占位用，官方 EntryEditDialog 同口径。
+                NativeTextField(
+                    value = draftText,
+                    onValueChange = { draftText = it },
+                    hint = ReturnDayStr.prepTextLabel(),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -2449,14 +2452,14 @@ private fun ReturnDayPrepCard(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TextButton(
-                    text = CommonStr.cancel(),
-                    onClick = { showTextDialog = false },
+                FlatTextButton(
+                    CommonStr.cancel(),
+                    { showTextDialog = false },
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(
-                    text = CommonStr.ok(),
-                    onClick = {
+                FlatTextButton(
+                    CommonStr.ok(),
+                    {
                         // 空串/纯空白由数据层兜底成默认文案（getReturnDayPrepText 保证非空），
                         // 不在这里复制 DEFAULT_RETURN_DAY_PREP_TEXT —— 默认值只能有一份。
                         // 改文案不需要重排闹钟（正文是到点现取的），所以不调 onSettingsChanged。
@@ -2588,14 +2591,14 @@ private fun HolidayBalanceCard(
                 modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                TextButton(
-                    text = CommonStr.cancel(),
-                    onClick = { showLeadDaysDialog = false },
+                FlatTextButton(
+                    CommonStr.cancel(),
+                    { showLeadDaysDialog = false },
                     modifier = Modifier.weight(1f),
                 )
-                TextButton(
-                    text = CommonStr.ok(),
-                    onClick = {
+                FlatTextButton(
+                    CommonStr.ok(),
+                    {
                         leadDays = draftLead
                         repository.setReturnDayBalanceLeadDays(draftLead)
                         onSettingsChanged()
