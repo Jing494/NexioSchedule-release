@@ -12,7 +12,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -39,6 +38,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -62,12 +62,11 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color as ComposeColor
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.TileMode
-import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
 import androidx.compose.ui.graphics.rememberGraphicsLayer
@@ -76,10 +75,9 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.onClick as onSemanticsClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
@@ -88,20 +86,22 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.haooz.chedule.data.model.Course
 import com.haooz.chedule.data.platform.ioDispatcher
 import com.haooz.chedule.data.platform.showToast
-import com.haooz.chedule.data.model.Course
 import com.haooz.chedule.data.repo.CourseRepository
 import com.haooz.chedule.data.storage.ScheduleFolder
 import com.haooz.chedule.i18n.CommonStr
 import com.haooz.chedule.i18n.SwitchStr
 import com.haooz.chedule.i18n.orDefaultName
-import com.haooz.chedule.ui.basic.LiquidTopBarButton
-import com.haooz.chedule.ui.components.CardExpand
+import com.haooz.nexioui.iconbutton.IconButton
+import com.haooz.nexioui.cardexpand.CardExpand
 import com.haooz.chedule.ui.components.cardRevealLayer
 import com.haooz.chedule.ui.components.rememberCardRevealState
-import com.haooz.chedule.ui.components.text.material.Text as Text
-import com.haooz.chedule.ui.effects.liquidglass.InteractiveHighlight
+import com.haooz.chedule.ui.components.text.material.Text
+import com.haooz.nexioui.interaction.InteractiveHighlight
+import com.haooz.softglass.GlassEnvironment
+import com.haooz.chedule.ui.glass.ScheduleSoftGlassStyle
 import com.haooz.chedule.ui.navigation.NAV_BG_DIM
 import com.haooz.chedule.ui.navigation.NAV_ENTER_DURATION
 import com.haooz.chedule.ui.navigation.NAV_ENTER_EASING
@@ -109,12 +109,6 @@ import com.haooz.chedule.ui.navigation.NAV_EXIT_DURATION
 import com.haooz.chedule.ui.navigation.NAV_EXIT_EASING
 import com.haooz.chedule.ui.navigation.NAV_PARALLAX
 import com.haooz.chedule.ui.screens.SemesterSchedulePreviewScreen
-import com.haooz.softglass.backdrop.GlassBackdrop
-import com.haooz.softglass.glass.BarFill
-import com.haooz.softglass.glass.BrightLargeTone
-import com.haooz.softglass.glass.SOFT_GLASS_LIVE_SHADER
-import com.haooz.chedule.ui.glass.ScheduleSoftGlassStyle
-import com.haooz.softglass.glass.applySoftGlass
 import com.haooz.chedule.ui.utils.AppMaterialSettings
 import com.haooz.chedule.ui.utils.LocalNativeDocumentChrome
 import com.haooz.chedule.ui.utils.NativeDocumentAction
@@ -128,58 +122,64 @@ import com.haooz.chedule.ui.utils.clipDuringTransition
 import com.haooz.chedule.ui.utils.hostVerticalBarEdge
 import com.haooz.chedule.ui.utils.isAppDarkTheme
 import com.haooz.chedule.ui.utils.rememberScreenCornerRadiiPx
-import com.haooz.chedule.ui.utils.toShape
-import com.haooz.softglass.backdrop.backdrops.layerBackdrop as liquidGlassLayerBackdrop
+import com.haooz.nexioui.window.toShape
 import com.haooz.softglass.backdrop.drawBackdrop
 import com.haooz.softglass.backdrop.effects.blur
 import com.haooz.softglass.backdrop.effects.runtimeShaderEffect
+import com.haooz.softglass.glass.BarFill
+import com.haooz.softglass.glass.BrightLargeTone
+import com.haooz.softglass.glass.SOFT_GLASS_LIVE_SHADER
+import com.haooz.softglass.glass.applySoftGlass
 import com.haooz.softglass.platform.isRenderEffectSupported
 import com.haooz.softglass.shape.ContinuousCapsule
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlin.math.sign
-import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Checkbox
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.NativeMiuixTextField
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.basic.Check
-import top.yukonga.miuix.kmp.icon.extended.Add
-import top.yukonga.miuix.kmp.icon.extended.AddFolder
-import top.yukonga.miuix.kmp.icon.extended.ChevronBackward
-import top.yukonga.miuix.kmp.icon.extended.ChevronForward
-import top.yukonga.miuix.kmp.icon.extended.Close
-import top.yukonga.miuix.kmp.icon.extended.Delete
-import top.yukonga.miuix.kmp.icon.extended.Edit
-import top.yukonga.miuix.kmp.icon.extended.Folder
-import top.yukonga.miuix.kmp.icon.extended.FolderFill
-import top.yukonga.miuix.kmp.icon.extended.Forward
-import top.yukonga.miuix.kmp.icon.extended.MoveFile
-import top.yukonga.miuix.kmp.icon.extended.Show
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBar
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
-import top.yukonga.miuix.kmp.layout.ProgressiveBlurTopBar
-import top.yukonga.miuix.kmp.layout.collapsibleTopInset
-import top.yukonga.miuix.kmp.layout.isTabletWidth
-import top.yukonga.miuix.kmp.layout.rememberSharedScrollBehavior
-import top.yukonga.miuix.kmp.layout.rememberTopBarMaterialState
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.CheckboxLocation
-import top.yukonga.miuix.kmp.preference.CheckboxPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.NavigationBackHandlerFor
-import top.yukonga.miuix.kmp.utils.PressFeedbackType
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.haooz.nexioui.button.ButtonDefaults
+import com.haooz.nexioui.card.Card
+import com.haooz.nexioui.card.CardDefaults
+import com.haooz.nexioui.checkbox.Checkbox
+import androidx.compose.material3.Icon
+import com.haooz.nexioui.textfield.TextField
+import com.haooz.nexioui.scaffold.Scaffold
+import com.haooz.nexioui.button.FlatTextButton
+import com.haooz.nexioui.icon.NexioIcons
+import com.haooz.nexioui.icon.basic.Check
+import com.haooz.nexioui.icon.extended.Add
+import com.haooz.nexioui.icon.extended.AddFolder
+import com.haooz.nexioui.icon.extended.ChevronBackward
+import com.haooz.nexioui.icon.extended.ChevronForward
+import com.haooz.nexioui.icon.extended.Close
+import com.haooz.nexioui.icon.extended.Delete
+import com.haooz.nexioui.icon.extended.Edit
+import com.haooz.nexioui.icon.extended.Folder
+import com.haooz.nexioui.icon.extended.FolderFill
+import com.haooz.nexioui.icon.extended.Forward
+import com.haooz.nexioui.icon.extended.MoveFile
+import com.haooz.nexioui.icon.extended.Show
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBar
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBarDefaults
+import com.haooz.nexioui.progressiveblurtopbar.ProgressiveBlurTopBar
+import com.haooz.nexioui.topappbar.collapsibleTopInset
+import com.haooz.nexioui.window.isTabletWidth
+import com.haooz.nexioui.topappbar.rememberSharedScrollBehavior
+import com.haooz.nexioui.topbarmaterial.rememberTopBarMaterialState
+import com.haooz.nexioui.overlaydialog.OverlayDialog
+import com.haooz.nexioui.checkboxpreference.CheckboxLocation
+import com.haooz.nexioui.checkboxpreference.CheckboxPreference
+import com.haooz.nexioui.theme.NexioTheme
+import com.haooz.nexioui.navigationback.NavigationBackHandlerFor
+import com.haooz.nexioui.card.PressFeedbackType
+import com.haooz.nexioui.overscroll.overScrollVertical
+import com.haooz.nexioui.scrollhaptic.scrollEndHaptic
+import kotlin.math.abs
+import kotlin.math.roundToInt
+import kotlin.math.sign
+import kotlin.time.Duration.Companion.milliseconds
+import androidx.compose.ui.graphics.Color as ComposeColor
+import androidx.compose.ui.semantics.onClick as onSemanticsClick
+import com.haooz.softglass.backdrop.backdrops.layerBackdrop as liquidGlassLayerBackdrop
 
 /** 切换课表页底部胶囊的柔光 shader 缓存键：尺寸与其他玻璃件不同，不能共用 uniform。 */
 private const val LIVE_SWITCH_BAR_GLASS_KEY = "NexioSoftGlassLiveSwitchBar"
@@ -540,7 +540,7 @@ fun SwitchScheduleScreen(
     val modalActive = showAddDialog || showEditDialog || showDeleteDialog ||
         showAddFolderDialog || showEditFolderDialog || showMoveDialog ||
         showShareConfirmDialog || isSharingSchedule
-    val tintArgb = MiuixTheme.colorScheme.primary.toArgb().toLong()
+    val tintArgb = NexioTheme.colorScheme.primary.toArgb().toLong()
     SideEffect {
         nativeChrome?.title = displayTitle
         nativeChrome?.tintArgb = tintArgb
@@ -653,7 +653,7 @@ fun SwitchScheduleScreen(
                         materialState = material,
                         contentPadding = {},
                         startAction = if (nativeNavigation) null else { backdropAlpha, shadowAlpha ->
-                            LiquidTopBarButton(
+                            IconButton(
                                 onClick = {
                                     if (isEditMode) {
                                         exitEditMode()
@@ -662,7 +662,7 @@ fun SwitchScheduleScreen(
                                     }
                                 },
                                 backdrop = liquidGlassBackdrop,
-                                icon = if (isEditMode) MiuixIcons.Normal.Close else MiuixIcons.ChevronBackward,
+                                icon = if (isEditMode) NexioIcons.Normal.Close else NexioIcons.ChevronBackward,
                                 contentDescription = if (isEditMode) CommonStr.close() else CommonStr.back(),
                                 performHapticFeedback = false,
                                 iconSize = if (isEditMode) 24.dp else 25.dp,
@@ -676,26 +676,26 @@ fun SwitchScheduleScreen(
                         },
                         endAction = if (!isEditMode && !nativeNavigation) { backdropAlpha, shadowAlpha ->
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                LiquidTopBarButton(
+                                IconButton(
                                     onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                         showAddDialog = true
                                     },
                                     backdrop = liquidGlassBackdrop,
-                                    icon = MiuixIcons.Add,
+                                    icon = NexioIcons.Add,
                                     contentDescription = CommonStr.add(),
                                     iconSize = 24.dp,
                                     backdropAlpha = backdropAlpha,
                                     shadowAlpha = shadowAlpha,
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                LiquidTopBarButton(
+                                IconButton(
                                     onClick = {
                                         hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                         showAddFolderDialog = true
                                     },
                                     backdrop = liquidGlassBackdrop,
-                                    icon = MiuixIcons.AddFolder,
+                                    icon = NexioIcons.AddFolder,
                                     contentDescription = SwitchStr.newFolder(),
                                     iconSize = 26.dp,
                                     backdropAlpha = backdropAlpha,
@@ -753,12 +753,12 @@ fun SwitchScheduleScreen(
                     }
                     // 胶囊底色：莫奈取色下跟随 surfaceContainer（与首页底栏、教务导入胶囊同一套）；
                     // 非莫奈保持原硬编码（亮 #FFFFFF/0.6、暗 #121212/0.54）；无材质档实色
-                    val containerColor = if (MiuixTheme.isDynamicColor) {
-                        MiuixTheme.colorScheme.surfaceContainer
-                            .copy(alpha = com.haooz.chedule.ui.utils.AppMaterialSettings.solidSurfaceAlpha(if (isAppDarkTheme()) 0.54f else 0.6f))
+                    val containerColor = if (NexioTheme.isDynamicColor) {
+                        NexioTheme.colorScheme.surfaceContainer
+                            .copy(alpha = AppMaterialSettings.solidSurfaceAlpha(if (isAppDarkTheme()) 0.54f else 0.6f))
                     } else if (!isAppDarkTheme()) Color(0xFFFFFFFF)
-                        .copy(com.haooz.chedule.ui.utils.AppMaterialSettings.solidSurfaceAlpha(0.6f))
-                    else Color(0xFF121212).copy(com.haooz.chedule.ui.utils.AppMaterialSettings.solidSurfaceAlpha(0.54f))
+                        .copy(AppMaterialSettings.solidSurfaceAlpha(0.6f))
+                    else Color(0xFF121212).copy(AppMaterialSettings.solidSurfaceAlpha(0.54f))
 
                     // 柔光玻璃：材质、档位、调色全由材质层给出；模糊走档位值，无材质档整体关。
                     // effects / shape / onDrawSurface 按引用比较，lambda 每帧新建会每帧重录采样层。
@@ -799,7 +799,10 @@ fun SwitchScheduleScreen(
                     // 但 gestureModifier 是 observeConsumed=true 的纯视觉观察者，照常跟手。
                     val bottomBarScope = rememberCoroutineScope()
                     val interactiveHighlight = remember(bottomBarScope) {
-                        InteractiveHighlight(animationScope = bottomBarScope)
+                        InteractiveHighlight(
+                            animationScope = bottomBarScope,
+                            isDark = { GlassEnvironment.isDark },
+                        )
                     }
                     // 左右跟手推移的累计位移(px) —— 与主页底栏 LiquidBottomTabs 的
                     // offsetAnimation 同角色，归一化/回弹参数也逐字一致
@@ -931,7 +934,7 @@ fun SwitchScheduleScreen(
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 BottomBarItem(
-                                    icon = MiuixIcons.Forward,
+                                    icon = NexioIcons.Forward,
                                     state = dragSelect,
                                     index = 0,
                                     label = SwitchStr.share(),
@@ -951,7 +954,7 @@ fun SwitchScheduleScreen(
                                     }
                                 )
                                 BottomBarItem(
-                                    icon = MiuixIcons.Edit,
+                                    icon = NexioIcons.Edit,
                                     state = dragSelect,
                                     index = 1,
                                     label = CommonStr.edit(),
@@ -978,7 +981,7 @@ fun SwitchScheduleScreen(
                                     }
                                 )
                                 BottomBarItem(
-                                    icon = MiuixIcons.MoveFile,
+                                    icon = NexioIcons.MoveFile,
                                     state = dragSelect,
                                     index = 2,
                                     label = SwitchStr.move(),
@@ -990,7 +993,7 @@ fun SwitchScheduleScreen(
                                     }
                                 )
                                 BottomBarItem(
-                                    icon = MiuixIcons.Delete,
+                                    icon = NexioIcons.Delete,
                                     state = dragSelect,
                                     index = 3,
                                     label = CommonStr.delete(),
@@ -1037,7 +1040,7 @@ fun SwitchScheduleScreen(
                     }
                     .then(
                         // 无材质档：玻璃全关，采样录屏层不挂
-                        if (com.haooz.chedule.ui.utils.AppMaterialSettings.isNoneTier()) Modifier
+                        if (AppMaterialSettings.isNoneTier()) Modifier
                         else Modifier.liquidGlassLayerBackdrop(liquidGlassBackdrop)
                     )
             ) {
@@ -1088,11 +1091,11 @@ fun SwitchScheduleScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(MiuixTheme.colorScheme.surface),
+                        .background(NexioTheme.colorScheme.surface),
                     insideMargin = PaddingValues(0.dp),
                     colors = CardDefaults.defaultColors(
-                        color = MiuixTheme.colorScheme.surface,
-                        contentColor = MiuixTheme.colorScheme.onSurface
+                        color = NexioTheme.colorScheme.surface,
+                        contentColor = NexioTheme.colorScheme.onSurface
                     )
                 ) {
                     // 未归入任何文件夹的课表；跟着课表列表与文件夹变化重算
@@ -1145,7 +1148,7 @@ fun SwitchScheduleScreen(
                                                 Text(
                                                     text = SwitchStr.folderEmpty(),
                                                     fontSize = 14.sp,
-                                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                                    color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                                                     modifier = Modifier.padding(
                                                         start = 16.dp,
                                                         bottom = 4.dp
@@ -1203,7 +1206,7 @@ fun SwitchScheduleScreen(
                         .padding(top = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    TextButton(
+                    FlatTextButton(
                         text = CommonStr.cancel(),
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1212,7 +1215,7 @@ fun SwitchScheduleScreen(
                         },
                         modifier = Modifier.weight(1f)
                     )
-                    TextButton(
+                    FlatTextButton(
                         text = SwitchStr.confirmShare(),
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1242,7 +1245,7 @@ fun SwitchScheduleScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NativeMiuixTextField(
+                    TextField(
                         value = newScheduleName,
                         onValueChange = { newScheduleName = it },
                         label = SwitchStr.scheduleNameLabel(),
@@ -1255,7 +1258,7 @@ fun SwitchScheduleScreen(
                             .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1264,14 +1267,14 @@ fun SwitchScheduleScreen(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.ok(),
                             enabled = newScheduleName.isNotBlank(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 if (scheduleNames.contains(newScheduleName)) {
                                     showToast(SwitchStr.duplicateSchedule())
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 val name = newScheduleName
                                 showAddDialog = false
@@ -1304,7 +1307,7 @@ fun SwitchScheduleScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NativeMiuixTextField(
+                    TextField(
                         value = editScheduleName,
                         onValueChange = { editScheduleName = it },
                         label = SwitchStr.scheduleNameLabel(),
@@ -1317,7 +1320,7 @@ fun SwitchScheduleScreen(
                             .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1326,22 +1329,22 @@ fun SwitchScheduleScreen(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.ok(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 if (editScheduleName.isBlank()) {
                                     showToast(SwitchStr.nameRequired())
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 if (editScheduleName == editingScheduleName) {
                                     showEditDialog = false
                                     editScheduleName = ""
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 if (scheduleNames.contains(editScheduleName)) {
                                     showToast(SwitchStr.duplicateSchedule())
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 val oldName = editingScheduleName
                                 val newName = editScheduleName
@@ -1391,8 +1394,8 @@ fun SwitchScheduleScreen(
                 ) {
                     Text(
                         text = deleteDialogText,
-                        style = MiuixTheme.textStyles.body1,
-                        color = MiuixTheme.colorScheme.onSurface,
+                        style = NexioTheme.textStyles.body1,
+                        color = NexioTheme.colorScheme.onSurface,
                         // 父 Column 居中摆位：选定项变化会换整段文案，按中心收放才不会先贴左边
                         textAlign = TextAlign.Center,
                     )
@@ -1402,7 +1405,7 @@ fun SwitchScheduleScreen(
                             .padding(top = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1410,7 +1413,7 @@ fun SwitchScheduleScreen(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                        FlatTextButton(
                             text = if (deleteScheduleCount > 0) CommonStr.delete() else SwitchStr.disband(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1460,7 +1463,7 @@ fun SwitchScheduleScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NativeMiuixTextField(
+                    TextField(
                         value = newFolderName,
                         onValueChange = { newFolderName = it },
                         label = SwitchStr.folderNameLabel(),
@@ -1473,7 +1476,7 @@ fun SwitchScheduleScreen(
                             .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1482,14 +1485,14 @@ fun SwitchScheduleScreen(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.ok(),
                             enabled = newFolderName.isNotBlank(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 if (folders.any { it.name == newFolderName }) {
                                     showToast(SwitchStr.duplicateFolder())
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 val name = newFolderName
                                 com.haooz.chedule.ui.utils.FeatureLog.switchSchedule("add_folder", name)
@@ -1522,7 +1525,7 @@ fun SwitchScheduleScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    NativeMiuixTextField(
+                    TextField(
                         value = editFolderName,
                         onValueChange = { editFolderName = it },
                         label = SwitchStr.folderNameLabel(),
@@ -1535,7 +1538,7 @@ fun SwitchScheduleScreen(
                             .padding(top = 12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1544,7 +1547,7 @@ fun SwitchScheduleScreen(
                             },
                             modifier = Modifier.weight(1f)
                         )
-                        TextButton(
+                        FlatTextButton(
                             text = CommonStr.ok(),
                             enabled = editFolderName.isNotBlank(),
                             onClick = {
@@ -1552,11 +1555,11 @@ fun SwitchScheduleScreen(
                                 if (editFolderName == (folders.find { it.id == editingFolderId }?.name ?: "")) {
                                     showEditFolderDialog = false
                                     editFolderName = ""
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 if (folders.any { it.name == editFolderName && it.id != editingFolderId }) {
                                     showToast(SwitchStr.duplicateFolder())
-                                    return@TextButton
+                                    return@FlatTextButton
                                 }
                                 com.haooz.chedule.ui.utils.FeatureLog.switchSchedule(
                                     "rename_folder", editFolderName
@@ -1587,7 +1590,7 @@ fun SwitchScheduleScreen(
                     MoveTargetRow(
                         title = SwitchStr.allSchedules(),
                         subtitle = SwitchStr.moveToRoot(),
-                        icon = MiuixIcons.MoveFile,
+                        icon = NexioIcons.MoveFile,
                         onClick = {
                             hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                             showMoveDialog = false
@@ -1599,7 +1602,7 @@ fun SwitchScheduleScreen(
                         MoveTargetRow(
                             title = folder.name.orDefaultName(SwitchStr.defaultFolderName),
                             subtitle = SwitchStr.scheduleCountN(folder.schedules.size),
-                            icon = MiuixIcons.Folder,
+                            icon = NexioIcons.Folder,
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                                 showMoveDialog = false
@@ -1724,21 +1727,21 @@ private fun ScheduleCardRow(
                             text = scheduleName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MiuixTheme.colorScheme.onSurface
+                            color = NexioTheme.colorScheme.onSurface
                         )
                         if (summary.isNotEmpty()) {
                             Text(
                                 text = summary,
                                 fontSize = 14.sp,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                color = NexioTheme.colorScheme.onSurfaceVariantSummary
                             )
                         }
                     }
                     if (isCurrent) {
                         Icon(
-                            imageVector = MiuixIcons.Basic.Check,
+                            imageVector = NexioIcons.Basic.Check,
                             contentDescription = SwitchStr.currentSchedule(),
-                            tint = MiuixTheme.colorScheme.primary,
+                            tint = NexioTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
@@ -1753,9 +1756,9 @@ private fun ScheduleCardRow(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = MiuixIcons.Show,
+                                imageVector = NexioIcons.Show,
                                 contentDescription = SwitchStr.preview(),
-                                tint = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                                tint = NexioTheme.colorScheme.onSurfaceVariantSummary,
                                 modifier = Modifier.size(21.dp)
                             )
                         }
@@ -1809,9 +1812,9 @@ private fun FolderCardRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = MiuixIcons.FolderFill,
+                        imageVector = NexioIcons.FolderFill,
                         contentDescription = SwitchStr.folder(),
-                        tint = MiuixTheme.colorScheme.primary,
+                        tint = NexioTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(Modifier.width(12.dp))
@@ -1820,12 +1823,12 @@ private fun FolderCardRow(
                             text = folderName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MiuixTheme.colorScheme.onSurface
+                            color = NexioTheme.colorScheme.onSurface
                         )
                         Text(
                             text = SwitchStr.scheduleCountN(scheduleCount),
                             fontSize = 14.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            color = NexioTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                     Checkbox(
@@ -1851,9 +1854,9 @@ private fun FolderCardRow(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        imageVector = if (expanded) MiuixIcons.FolderFill else MiuixIcons.Folder,
+                        imageVector = if (expanded) NexioIcons.FolderFill else NexioIcons.Folder,
                         contentDescription = SwitchStr.folder(),
-                        tint = MiuixTheme.colorScheme.primary,
+                        tint = NexioTheme.colorScheme.primary,
                         modifier = Modifier.size(22.dp)
                     )
                     Spacer(Modifier.width(12.dp))
@@ -1862,21 +1865,21 @@ private fun FolderCardRow(
                             text = folderName,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Medium,
-                            color = MiuixTheme.colorScheme.onSurface
+                            color = NexioTheme.colorScheme.onSurface
                         )
                         Text(
                             text = SwitchStr.scheduleCountN(scheduleCount),
                             fontSize = 14.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                            color = NexioTheme.colorScheme.onSurfaceVariantSummary
                         )
                     }
                     Icon(
-                        imageVector = MiuixIcons.ChevronForward,
+                        imageVector = NexioIcons.ChevronForward,
                         contentDescription = null,
                         modifier = Modifier
                             .size(16.dp)
                             .graphicsLayer { rotationZ = expandRotation },
-                        tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+                        tint = NexioTheme.colorScheme.onSurfaceVariantActions
                     )
                 }
             }
@@ -1911,7 +1914,7 @@ private fun MoveTargetRow(
             Icon(
                 imageVector = icon,
                 contentDescription = title,
-                tint = MiuixTheme.colorScheme.primary,
+                tint = NexioTheme.colorScheme.primary,
                 modifier = Modifier.size(22.dp)
             )
             Spacer(Modifier.width(12.dp))
@@ -1920,13 +1923,13 @@ private fun MoveTargetRow(
                     text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium,
-                    color = MiuixTheme.colorScheme.onSurface
+                    color = NexioTheme.colorScheme.onSurface
                 )
                 if (!subtitle.isNullOrEmpty()) {
                     Text(
                         text = subtitle,
                         fontSize = 13.sp,
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                        color = NexioTheme.colorScheme.onSurfaceVariantSummary
                     )
                 }
             }
@@ -2066,7 +2069,7 @@ private fun RowScope.BottomBarItem(
         Icon(
             imageVector = icon,
             contentDescription = label,
-            tint = if (enabled) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onSurface.copy(
+            tint = if (enabled) NexioTheme.colorScheme.onSurface else NexioTheme.colorScheme.onSurface.copy(
                 alpha = 0.38f
             ),
             modifier = Modifier.size(24.dp)
@@ -2074,7 +2077,7 @@ private fun RowScope.BottomBarItem(
         Text(
             text = label,
             fontSize = 11.sp,
-            color = if (enabled) MiuixTheme.colorScheme.onSurface else MiuixTheme.colorScheme.onSurface.copy(
+            color = if (enabled) NexioTheme.colorScheme.onSurface else NexioTheme.colorScheme.onSurface.copy(
                 alpha = 0.38f
             ),
             textAlign = TextAlign.Center,

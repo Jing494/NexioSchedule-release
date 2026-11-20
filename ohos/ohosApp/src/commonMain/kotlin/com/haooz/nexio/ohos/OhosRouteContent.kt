@@ -22,6 +22,8 @@ import com.haooz.chedule.i18n.ChromeStr
 import com.haooz.chedule.ui.activities.ReminderPermissionRow
 import com.haooz.chedule.ui.activities.ScheduleDataManageMode
 import com.haooz.chedule.ui.navigation.AboutRoute
+import com.haooz.chedule.ui.navigation.AiEduImportHistoryRoute
+import com.haooz.chedule.ui.navigation.AiFeaturesRoute
 import com.haooz.chedule.ui.navigation.AiImportRoute
 import com.haooz.chedule.ui.navigation.AppRoute
 import com.haooz.chedule.ui.navigation.AppRouter
@@ -29,6 +31,7 @@ import com.haooz.chedule.ui.navigation.AppreciateAuthorRoute
 import com.haooz.chedule.ui.navigation.BackupAndMigrationRoute
 import com.haooz.chedule.ui.navigation.BackupCenterRoute
 import com.haooz.chedule.ui.navigation.ChangelogRoute
+import com.haooz.chedule.ui.navigation.McpServiceRoute
 import com.haooz.chedule.ui.navigation.CommunicationRoute
 import com.haooz.chedule.ui.navigation.CourseManageRoute
 import com.haooz.chedule.ui.navigation.CourseReminderRoute
@@ -52,7 +55,7 @@ import com.haooz.chedule.ui.utils.ShareCodeImport
 import com.haooz.chedule.uishared.resources.Res
 import com.haooz.chedule.uishared.resources.about_app_icon
 import org.jetbrains.compose.resources.imageResource
-import top.yukonga.miuix.kmp.theme.MiuixTheme
+import com.haooz.nexioui.theme.NexioTheme
 
 /** 鸿蒙没有这四类系统设置：精确闹钟授权、电池优化白名单、免打扰访问、自启动管理。 */
 private val OhosHiddenReminderPermissionRows = setOf(
@@ -112,6 +115,14 @@ fun OhosRouteContent(router: AppRouter, route: AppRoute) {
         AppRoute.Feedback -> FeedbackRoute(router)
         AppRoute.FeedbackHistory -> FeedbackHistoryRoute(router)
         AppRoute.FeedbackRoadmap -> FeedbackRoadmapRoute(router)
+        AppRoute.AiFeatures -> AiFeaturesRoute(router)
+        AppRoute.McpService -> {
+            val clipboard = LocalClipboardManager.current
+            McpServiceRoute(
+                router = router,
+                onCopyToClipboard = { text -> clipboard.setText(AnnotatedString(text)) },
+            )
+        }
         AppRoute.AppreciateAuthor -> AppreciateAuthorRoute(router)
         AppRoute.AiImport -> {
             val clipboard = LocalClipboardManager.current
@@ -176,6 +187,11 @@ fun OhosRouteContent(router: AppRouter, route: AppRoute) {
         // 网页导入：网页与它自己的顶栏/底栏都在 ArkUI 层（压在整个 Compose 之上），
         // Compose 这层只留空占位 + 路由生命周期 + 落库收尾。
         AppRoute.WebImport -> OhosWebImportRoute(router)
+        // AI 教务导入要「带回传的 JS 执行」+ 模型通道，鸿蒙端尚未搭桥
+        AppRoute.AiEduImport -> RouteUnavailable(router, "AI 教务导入")
+        AppRoute.AiEduImportHistory -> AiEduImportHistoryRoute(router)
+        // 预览页只从 AI 教务导入进入，那边在鸿蒙上还不可用
+        AppRoute.AiEduPreview -> RouteUnavailable(router, "AI 教务导入")
     }
 }
 
@@ -185,7 +201,7 @@ private fun RouteUnavailable(router: AppRouter, name: String) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MiuixTheme.colorScheme.surface),
+            .background(NexioTheme.colorScheme.surface),
         contentAlignment = Alignment.Center,
     ) {
         Column(
@@ -193,16 +209,16 @@ private fun RouteUnavailable(router: AppRouter, name: String) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(24.dp),
         ) {
-            Text(name, fontSize = 18.sp, color = MiuixTheme.colorScheme.onSurface)
+            Text(name, fontSize = 18.sp, color = NexioTheme.colorScheme.onSurface)
             Text(
                 "该页面需要 ArkTS 侧的 Web 组件 / 文件选择器，尚未搭桥",
                 fontSize = 13.sp,
-                color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                color = NexioTheme.colorScheme.onSurfaceVariantActions,
             )
             Text(
                 "点此返回",
                 fontSize = 15.sp,
-                color = MiuixTheme.colorScheme.primary,
+                color = NexioTheme.colorScheme.primary,
                 modifier = Modifier
                     .padding(top = 12.dp)
                     .clickable { router.popBack() },

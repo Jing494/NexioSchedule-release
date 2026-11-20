@@ -44,8 +44,10 @@ F_MAINACT = f"{J_APP}/ui/activities/MainActivity.kt"
 F_APPSHELL = f"{J_SHARED}/ui/activities/main/CourseScheduleApp.kt"
 F_APPSHELL_STATE = f"{J_SHARED}/ui/activities/main/CourseScheduleAppState.kt"
 F_MAINSCHED = f"{J_SHARED}/ui/activities/classschedule/MainScheduleScreen.kt"
-F_SETTINGS = f"{J_SHARED}/ui/screens/SettingsScreen.kt"
-F_SETTINGS_SEARCH = f"{J_SHARED}/ui/screens/SettingsSearch.kt"
+# 1.7.3 起 upstream 把设置页搬进 activities/setting/（screens/ 下只剩少数独立页）。
+# 路径常量必须跟着搬：过期的表现是「文件不存在」，看上去像源码问题。
+F_SETTINGS = f"{J_SHARED}/ui/activities/setting/SettingsScreen.kt"
+F_SETTINGS_SEARCH = f"{J_SHARED}/ui/activities/setting/SettingsSearch.kt"
 F_REMSCREEN = f"{J_SHARED}/ui/activities/CourseReminderScreen.kt"
 F_REMCONTROLLER = f"{J_CORE}/data/platform/ReminderController.kt"   # 1.7.x 起 data 层按职责拆子包
 F_UPDCHECK = f"{J_APP}/ui/utils/UpdateChecker.kt"

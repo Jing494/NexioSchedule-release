@@ -41,14 +41,14 @@ import com.haooz.chedule.data.platform.showToast
 import com.haooz.chedule.i18n.ReminderTestStr
 import com.haooz.chedule.ui.components.text.material.Text
 import com.haooz.softglass.shape.ContinuousRoundedRectangle
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
-import top.yukonga.miuix.kmp.layout.SharedScrollBehavior
-import top.yukonga.miuix.kmp.layout.collapsibleTopInset
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.haooz.nexioui.card.Card
+import com.haooz.nexioui.scaffold.Scaffold
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBarDefaults
+import com.haooz.nexioui.topappbar.SharedScrollBehavior
+import com.haooz.nexioui.topappbar.collapsibleTopInset
+import com.haooz.nexioui.theme.NexioTheme
+import com.haooz.nexioui.overscroll.overScrollVertical
+import com.haooz.nexioui.scrollhaptic.scrollEndHaptic
 
 /** 超级岛通道色（与胶囊顶栏选中态同一族）。 */
 private val IslandAccent = Color(0xFF5B5BD6)
@@ -251,20 +251,20 @@ private fun ReminderTestChannelCard(
                         .clip(ContinuousRoundedRectangle(5.dp))
                         .background(
                             if (islandOn) IslandAccent
-                            else MiuixTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+                            else NexioTheme.colorScheme.onSurface.copy(alpha = 0.28f)
                         )
                 )
                 Spacer(modifier = Modifier.size(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = ReminderTestStr.currentChannel(),
-                        style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                        style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+                        color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                     )
                     Text(
                         text = channel,
-                        style = MiuixTheme.textStyles.title3.copy(fontWeight = FontWeight.SemiBold),
-                        color = MiuixTheme.colorScheme.onSurface,
+                        style = NexioTheme.textStyles.title3.copy(fontWeight = FontWeight.SemiBold),
+                        color = NexioTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -274,8 +274,8 @@ private fun ReminderTestChannelCard(
             }
             Text(
                 text = ReminderTestStr.channelExplain(),
-                style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+                color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                 modifier = Modifier.padding(start = 18.dp, end = 18.dp, bottom = 16.dp),
             )
         }
@@ -300,7 +300,7 @@ private fun PressablePill(
         modifier = Modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(ContinuousRoundedRectangle(14.dp))
-            .background(MiuixTheme.colorScheme.primary.copy(alpha = if (pressed) 0.22f else 0.14f))
+            .background(NexioTheme.colorScheme.primary.copy(alpha = if (pressed) 0.22f else 0.14f))
             .clickable(interactionSource = interaction, indication = null) {
                 haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
                 onClick()
@@ -309,8 +309,8 @@ private fun PressablePill(
     ) {
         Text(
             text = text,
-            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-            color = MiuixTheme.colorScheme.primary,
+            style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            color = NexioTheme.colorScheme.primary,
             maxLines = 1,
         )
     }
@@ -320,8 +320,8 @@ private fun PressablePill(
 private fun ReminderTestSectionTitle(text: String) {
     Text(
         text = text,
-        style = MiuixTheme.textStyles.body1.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        style = NexioTheme.textStyles.body1.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+        color = NexioTheme.colorScheme.onSurfaceVariantSummary,
         modifier = Modifier.padding(start = 4.dp, top = 6.dp, bottom = 2.dp),
     )
 }
@@ -355,7 +355,7 @@ private fun ReminderTestScenarioCard(
                             .fillMaxWidth()
                             .padding(start = 18.dp, end = 18.dp)
                             .height(0.5.dp)
-                            .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .background(NexioTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                     )
                 }
             }
@@ -401,8 +401,8 @@ private fun ScenarioRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = entry.label,
-                style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
-                color = MiuixTheme.colorScheme.onSurface,
+                style = NexioTheme.textStyles.body1.copy(fontWeight = FontWeight.Medium),
+                color = NexioTheme.colorScheme.onSurface,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -410,8 +410,8 @@ private fun ScenarioRow(
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = entry.detail,
-                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+                    color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -421,7 +421,7 @@ private fun ScenarioRow(
         // 「发送」不再是裸文字：给一颗有质感的小胶囊（高光 + 描边 + 按压回弹 + 触感）
         SendPill(
             text = ReminderTestStr.send(),
-            tint = if (entry.liveContainer) accent else MiuixTheme.colorScheme.primary,
+            tint = if (entry.liveContainer) accent else NexioTheme.colorScheme.primary,
         )
     }
 }
@@ -453,7 +453,7 @@ private fun SendPill(text: String, tint: Color) {
     ) {
         Text(
             text = text,
-            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             color = tint,
             maxLines = 1,
         )
@@ -481,22 +481,22 @@ private fun ReminderTestChannelsCard(
             Column(modifier = Modifier.padding(start = 18.dp, end = 18.dp, top = 16.dp)) {
                 Text(
                     text = ReminderTestStr.channelCardTitle(),
-                    style = MiuixTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold),
-                    color = MiuixTheme.colorScheme.onSurface,
+                    style = NexioTheme.textStyles.body1.copy(fontWeight = FontWeight.SemiBold),
+                    color = NexioTheme.colorScheme.onSurface,
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = ReminderTestStr.channelCardHint(),
-                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+                    color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                 )
             }
             Spacer(modifier = Modifier.height(10.dp))
             if (channels.isEmpty()) {
                 Text(
                     text = ReminderTestStr.channelReadFailed(),
-                    style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+                    style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+                    color = NexioTheme.colorScheme.onSurfaceVariantSummary,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp),
                 )
             } else {
@@ -508,7 +508,7 @@ private fun ReminderTestChannelsCard(
                                 .fillMaxWidth()
                                 .padding(start = 18.dp, end = 18.dp)
                                 .height(0.5.dp)
-                                .background(MiuixTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                                .background(NexioTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                         )
                     }
                 }
@@ -524,7 +524,7 @@ private fun ReminderTestChannelsCard(
 @Composable
 private fun ChannelRow(channel: ReminderTestChannel) {
     val dot = when {
-        channel.missing -> MiuixTheme.colorScheme.onSurface.copy(alpha = 0.28f)
+        channel.missing -> NexioTheme.colorScheme.onSurface.copy(alpha = 0.28f)
         channel.disabled -> ChannelOffColor
         channel.silenced -> ChannelWarnColor
         else -> ChannelOkColor
@@ -548,8 +548,8 @@ private fun ChannelRow(channel: ReminderTestChannel) {
         Spacer(modifier = Modifier.size(12.dp))
         Text(
             text = channel.name.ifBlank { ReminderTestStr.channelMissing() },
-            style = MiuixTheme.textStyles.body1,
-            color = MiuixTheme.colorScheme.onSurface,
+            style = NexioTheme.textStyles.body1,
+            color = NexioTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
@@ -557,7 +557,7 @@ private fun ChannelRow(channel: ReminderTestChannel) {
         Spacer(modifier = Modifier.size(8.dp))
         Text(
             text = label,
-            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+            style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp, fontWeight = FontWeight.Medium),
             color = dot,
             maxLines = 1,
         )
@@ -570,8 +570,8 @@ private fun ReminderTestEmptyHint() {
     TestCard {
         Text(
             text = ReminderTestStr.emptyHint(),
-            style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-            color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+            style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+            color = NexioTheme.colorScheme.onSurfaceVariantSummary,
             modifier = Modifier.padding(18.dp),
         )
     }
@@ -581,8 +581,8 @@ private fun ReminderTestEmptyHint() {
 private fun ReminderTestFootnote() {
     Text(
         text = ReminderTestStr.footnote(),
-        style = MiuixTheme.textStyles.body1.copy(fontSize = 12.sp),
-        color = MiuixTheme.colorScheme.onSurfaceVariantSummary,
+        style = NexioTheme.textStyles.body1.copy(fontSize = 12.sp),
+        color = NexioTheme.colorScheme.onSurfaceVariantSummary,
         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
     )
 }

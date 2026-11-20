@@ -8,6 +8,7 @@ import com.haooz.chedule.data.platform.AppInfo
 import com.haooz.chedule.data.platform.FileAppFile
 import com.haooz.chedule.data.platform.NexioLog
 import com.haooz.chedule.data.platform.ScheduleEffects
+import com.haooz.chedule.data.platform.initDeviceIdentity
 import com.haooz.chedule.data.platform.initToast
 import com.haooz.chedule.data.repo.CourseRepository
 import com.haooz.chedule.data.storage.AppStorage
@@ -29,6 +30,8 @@ class NexioApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 稳定设备标识要先于任何统计 / AI / 反馈调用接线（ANDROID_ID 需要 ContentResolver）。
+        initDeviceIdentity(this)
         // 必须最先初始化。工厂按名转发命名空间，不在此汇总键名。
         // 没有第二套存储：库不可用时直接抛，不静默降级。
         AppStorage.init { name ->
@@ -99,6 +102,17 @@ class NexioApplication : Application() {
         com.haooz.chedule.widget.WidgetMonetColors.installRefresh(this)
         warmUpStorage()
         cleanupTransientFiles()
+        // 本地 MCP 服务：仅监听 127.0.0.1，供手机上的 AI 助手读取课表
+        com.haooz.chedule.data.mcp.McpServiceBridge.supported = true
+        com.haooz.chedule.data.mcp.McpServiceBridge.start = {
+            com.haooz.chedule.mcp.McpForegroundService.start(this)
+        }
+        com.haooz.chedule.data.mcp.McpServiceBridge.stop = {
+            com.haooz.chedule.mcp.McpForegroundService.stop(this)
+        }
+        if (com.haooz.chedule.data.mcp.McpServicePrefs.isEnabled()) {
+            com.haooz.chedule.mcp.McpForegroundService.start(this)
+        }
         enableWebViewRemoteDebugging()
         // 调休映射迁移：旧版存「周次+星期」相对课表会错位，换算成绝对日期后按当前课表实时折算。后台线程执行避免拖慢冷启动。
         Thread {

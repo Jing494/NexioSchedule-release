@@ -106,6 +106,9 @@ import com.haooz.chedule.ui.components.text.material.Text
 import com.haooz.chedule.ui.data.ChangelogEntry
 import com.haooz.chedule.ui.data.changelogData
 import com.haooz.chedule.ui.glass.ScheduleSoftGlassStyle
+import com.haooz.nexioui.motion.ArcBendAxis
+import com.haooz.nexioui.motion.ArcBendShape
+import com.haooz.nexioui.motion.arcBend
 import com.haooz.chedule.ui.utils.AppMaterialSettings
 import com.haooz.chedule.ui.utils.HostNavigationState
 import com.haooz.chedule.ui.utils.ScreenCornerRadiiPx
@@ -132,26 +135,26 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.painterResource
-import top.yukonga.miuix.kmp.basic.Button
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.ChevronForward
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
-import top.yukonga.miuix.kmp.layout.SharedScrollBehavior
-import top.yukonga.miuix.kmp.layout.collapsibleTopInset
-import top.yukonga.miuix.kmp.layout.isTabletWidth
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.NavigationBackHandlerFor
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.haooz.nexioui.button.Button
+import com.haooz.nexioui.button.ButtonDefaults
+import com.haooz.nexioui.card.Card
+import com.haooz.nexioui.card.CardDefaults
+import androidx.compose.material3.Icon
+import com.haooz.nexioui.progressindicator.LinearProgressIndicator
+import com.haooz.nexioui.scaffold.Scaffold
+import com.haooz.nexioui.button.FlatTextButton
+import com.haooz.nexioui.icon.NexioIcons
+import com.haooz.nexioui.icon.extended.ChevronForward
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBarDefaults
+import com.haooz.nexioui.topappbar.SharedScrollBehavior
+import com.haooz.nexioui.topappbar.collapsibleTopInset
+import com.haooz.nexioui.window.isTabletWidth
+import com.haooz.nexioui.overlaydialog.OverlayDialog
+import com.haooz.nexioui.arrowpreference.ArrowPreference
+import com.haooz.nexioui.theme.NexioTheme
+import com.haooz.nexioui.navigationback.NavigationBackHandlerFor
+import com.haooz.nexioui.overscroll.overScrollVertical
+import com.haooz.nexioui.scrollhaptic.scrollEndHaptic
 import kotlin.math.PI
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -190,6 +193,31 @@ private const val HeroOpenHeightRatio = 0.12f
 
 /** 相机距离（乘以 density 转成像素）：越小透视越猛 */
 private const val HeroFlipCamera = 40f
+
+/**
+ * 版本卡 → 日志页的两段弯曲，复用引导页那套通用形变（见 ArcBendShader.kt）。
+ * 引导页是绕纵轴（rotationY）左右翻，弯曲按 x 变化；**这里是绕横轴（rotationX）上下翻，
+ * 两段都必须传 `ArcBendAxis.Vertical`**，按 y 变化、做横向缩放。
+ * 正面卡（flip < 0.5）走 InwardOutward「上内凹 → 下鼓起」，背面日志页（flip > 0.5）
+ * 走 RightShrink「下端收缩」。第一段幅度与引导页一致；第二段因为 Vertical 轴分母更小，
+ * 补偿后又单独放大，见 HeroChangelogBackCurveBoost，别把两处幅度当成同一个值。
+ */
+
+/** 第一段：正面卡的最大弯曲幅度（相对半轴，无量纲）。 */
+private const val HeroChangelogFrontBend = 0.35f
+
+/** 第二段：背面日志页的收缩基准（dp），还要按屏幕宽高比补偿、再乘下方倍数。 */
+private const val HeroChangelogBackCurveDp = 110f
+
+/**
+ * 第二段幅度相对引导页基准的放大倍数。
+ * 补偿到 Vertical 轴后基准只把宽度收到约 75%，更新页要明显得多才有「翻过去」的形变感；
+ * 真机调这一个常量即可，别去改 shader 曲线。
+ */
+private const val HeroChangelogBackCurveBoost = 2.2f
+
+/** 弯曲强度：两端直边、中段最弯，与 U 型下潜共用同一条 sin(πp) 时间线。 */
+private fun heroFlipCurve(p: Float): Float = sin(PI.toFloat() * p)
 
 /** 开卡动效时长（位移 + 翻转同一段）。 */
 private const val HeroOpenMotionMs = 520
@@ -668,7 +696,7 @@ fun UpdateSettingsScreen(
                         Text(
                             text = AboutStr.gettingDownloadUrlDots(),
                             fontSize = 14.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                            color = NexioTheme.colorScheme.onSurfaceVariantActions
                         )
                     } else if (isDownloading) {
                         LinearProgressIndicator(
@@ -679,7 +707,7 @@ fun UpdateSettingsScreen(
                         Text(
                             text = "${(downloadProgress * 100).toInt()}%",
                             fontSize = 14.sp,
-                            color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                            color = NexioTheme.colorScheme.onSurfaceVariantActions,
                             textAlign = TextAlign.Center,
                         )
                     } else if (downloadComplete) {
@@ -691,7 +719,7 @@ fun UpdateSettingsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         // 始终提供关闭入口：安装中也能关掉弹窗
-                        TextButton(
+                        FlatTextButton(
                             text = if (isInstalling) CommonStr.close() else CommonStr.cancel(),
                             onClick = {
                                 hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -1051,6 +1079,9 @@ internal fun UpdateChangelogMorphLayer(
     val cardRect = origin.rect
     val densityScope = LocalDensity.current
     val screenCorners = rememberScreenCornerRadiiPx()
+    // 第二段的基准幅度（与引导页同值）；Vertical 轴下还要在 BoxWithConstraints 里
+    // 乘 screenWidth/screenHeight，补偿「分母从半高变半宽」带来的强度差异
+    val maxCurvePx = with(densityScope) { HeroChangelogBackCurveDp.dp.toPx() }
     // 展开到位后才补齐日志页剩余条目：点开那一刻只排首屏那几条，预加载才够快
     val settled by remember { derivedStateOf { heroGrowProgress(grow()) >= 0.999f } }
     // 翻过 90° 正面那张卡已经看不见了，必须卸载：它压在日志页之上，
@@ -1125,7 +1156,7 @@ internal fun UpdateChangelogMorphLayer(
                         // 中心跟着展开一起从卡片中心滑向屏幕中心
                         val centerX = cardCenterX + (screenWidth / 2f - cardCenterX) * grown
                         // 与正面同一条 U 型轨迹：先下潜，再翻上来
-                        val dip = cardHeight * HeroFlipDipRatio * sin(PI.toFloat() * p)
+                        val dip = cardHeight * HeroFlipDipRatio * heroFlipCurve(p)
                         val centerY =
                             cardCenterY + (screenHeight / 2f - cardCenterY) * grown + dip
                         cameraDistance = HeroFlipCamera * density
@@ -1142,6 +1173,13 @@ internal fun UpdateChangelogMorphLayer(
                         rotationX = HeroFlipDegrees * (1f + p)
                         alpha = if (p > 0.5f) 1f else 0f
                     }
+                    // 第二段：日志页「末段收缩逐渐收」，曲线与引导页同一条
+                    .arcBend(
+                        shape = ArcBendShape.RightShrink,
+                        amplitude = { maxCurvePx * heroFlipCurve(flip()) },
+                        axis = ArcBendAxis.Vertical,
+                        visible = { flip() > 0.5f },
+                    )
                     .clip(revealShape)
                     // 整页自己接住点击：铺开后点空白处不该再落到下面的遮罩上退出。
                     // 必须放在 graphicsLayer 之内，触摸区域才会跟着翻转/缩放的那条矩形走
@@ -1150,6 +1188,10 @@ internal fun UpdateChangelogMorphLayer(
                 DocumentPageScaffold(
                     title = ChromeStr.changelog(),
                     onBack = onClose,
+                    // 翻转期间内容静止（只排首屏 4 条、页内不可滚动）：给采样层一个稳定键。
+                    // recordKey 默认 null = 每帧把整页重录一遍供顶栏玻璃采样，那才是卡顿主因。
+                    // 落定后回到 null 恢复常规重录，滚动时玻璃不会冻结在旧帧。
+                    recordKey = if (settled) null else Unit,
                 ) { scrollBehavior, _ ->
                     ChangelogScreen(scrollBehavior = scrollBehavior, settled = settled)
                 }
@@ -1173,16 +1215,24 @@ internal fun UpdateChangelogMorphLayer(
                         transformOrigin = TransformOrigin(0.5f, 0.5f)
                         rotationX = HeroFlipDegrees * p
                         // 与背面同一条 U 型轨迹
-                        translationY = cardHeight * HeroFlipDipRatio * sin(PI.toFloat() * p)
+                        translationY = cardHeight * HeroFlipDipRatio * heroFlipCurve(p)
                         alpha = if (p < 0.5f) 1f else 0f
                     }
+                    // 第一段：版本卡「上内凹 → 下鼓起」逐渐展开，单曲率无拐点。
+                    // 与引导页语言卡同一幅度（相对半轴比例），只把弯曲轴换成上下方向。
+                    .arcBend(
+                        shape = ArcBendShape.InwardOutward,
+                        amplitude = { HeroChangelogFrontBend * heroFlipCurve(flip()) },
+                        axis = ArcBendAxis.Vertical,
+                        visible = { flip() <= 0.5f },
+                    )
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onClose,
                     )
             ) {
-                HeroCardFace(highlighted = origin.hasUpdate) { glass ->
+                HeroCardFace(highlighted = origin.hasUpdate, replayEnter = false) { glass ->
                     HeroCardFront(
                         version = origin.version,
                         entry = origin.entry,
@@ -1207,18 +1257,20 @@ internal fun UpdateChangelogMorphLayer(
 private fun HeroCardFace(
     sheenOnEnter: Boolean = false,
     highlighted: Boolean = false,
+    /** 浮层替身卡是「同一张卡接着翻面」，不重播任何进场动效 */
+    replayEnter: Boolean = true,
     content: @Composable (glass: GlassBackdrop?) -> Unit,
 ) {
     // 与设置页普通卡片同圆角，视觉上属于同一套器件
     val shape = remember { ContinuousRoundedRectangle(20.dp) }
     val isDark = isAppDarkTheme()
     val baseCardColor = CardDefaults.defaultColors().color
-    val primary = MiuixTheme.colorScheme.primary
+    val primary = NexioTheme.colorScheme.primary
     // 淡蓝底：纯白上微光几乎不可见，给卡片一点色相才能读出高光扫过
     val cardColor = remember(baseCardColor, primary, isDark) {
         lerp(baseCardColor, primary, if (isDark) 0.12f else 0.08f)
     }
-    val onCard = MiuixTheme.colorScheme.onSurface
+    val onCard = NexioTheme.colorScheme.onSurface
     val glassOn = true
     val cardBackdrop = rememberLayerBackdrop { drawContent() }
     val recordKey = remember(isDark, cardColor) { listOf(isDark, cardColor) }
@@ -1236,10 +1288,13 @@ private fun HeroCardFace(
             sheen.snapTo(1f)
         }
     }
-    // 课表格线跟随首次高光逐条显影
-    val gridReveal = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        gridReveal.animateTo(1f, tween(1000, delayMillis = 100, easing = LinearEasing))
+    // 课表格线跟随首次高光逐条显影。浮层替身卡直接落到终态：它若重播这段 1s 动画，
+    // 翻转的 600ms 里 drawBehind 每帧读 state、整张卡（含 layerBackdrop）每帧重绘。
+    val gridReveal = remember { Animatable(if (replayEnter) 0f else 1f) }
+    LaunchedEffect(replayEnter) {
+        if (replayEnter) {
+            gridReveal.animateTo(1f, tween(1000, delayMillis = 100, easing = LinearEasing))
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -1359,7 +1414,7 @@ private fun HeroCardFace(
                     .matchParentSize()
                     .border(
                         width = 1.dp,
-                        color = MiuixTheme.colorScheme.primary.copy(alpha = borderAlpha),
+                        color = NexioTheme.colorScheme.primary.copy(alpha = borderAlpha),
                         shape = shape,
                     )
             )
@@ -1378,8 +1433,8 @@ private fun HeroCardFront(
     onOpenChangelog: () -> Unit,
     onOpenUpdate: () -> Unit,
 ) {
-    val onCard = MiuixTheme.colorScheme.onSurface
-    val summary = MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val onCard = NexioTheme.colorScheme.onSurface
+    val summary = NexioTheme.colorScheme.onSurfaceVariantSummary
     val heroNumber = majorMinorVersion(version)
     // 内容比卡片晚半拍落定：先看到卡，再看到版本号浮上来。
     // 但浮层卡是「同一张卡接着翻面」，不是新进场：必须直接落到终态，
@@ -1555,7 +1610,7 @@ private fun HeroMonogram() {
     val outline = if (isDark) {
         Color.White.copy(alpha = 0.16f)
     } else {
-        MiuixTheme.colorScheme.onSurface.copy(alpha = 0.10f)
+        NexioTheme.colorScheme.onSurface.copy(alpha = 0.10f)
     }
     Box(
         modifier = Modifier
@@ -1585,7 +1640,7 @@ private fun UpdateStatusAction(
     glass: GlassBackdrop?,
     onClick: () -> Unit,
 ) {
-    val colorScheme = MiuixTheme.colorScheme
+    val colorScheme = NexioTheme.colorScheme
     val isDark = isAppDarkTheme()
     val actionable = hasUpdate && !checking
     val isLightTheme = !isDark
@@ -1599,8 +1654,8 @@ private fun UpdateStatusAction(
         colorScheme.primary.copy(
             alpha = AppMaterialSettings.solidSurfaceAlpha(if (isLightTheme) 0.72f else 0.62f)
         )
-    } else if (MiuixTheme.isDynamicColor) {
-        MiuixTheme.colorScheme.surfaceContainer.copy(
+    } else if (NexioTheme.isDynamicColor) {
+        NexioTheme.colorScheme.surfaceContainer.copy(
             alpha = AppMaterialSettings.glassSurfaceAlpha(if (isLightTheme) 0.76f else 0.84f, isLightTheme)
         )
     } else if (isLightTheme) {
@@ -1743,7 +1798,7 @@ private fun StatusDot(
 /** 底部「更新日志 ›」：整块圆角点击区，别让手指只能点到那几个字。 */
 @Composable
 private fun ChangelogLink(onClick: () -> Unit) {
-    val summary = MiuixTheme.colorScheme.onSurfaceVariantSummary
+    val summary = NexioTheme.colorScheme.onSurfaceVariantSummary
     Row(
         modifier = Modifier
             .clip(ContinuousRoundedRectangle(12.dp))
@@ -1763,7 +1818,7 @@ private fun ChangelogLink(onClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(6.dp))
         Icon(
-            imageVector = MiuixIcons.ChevronForward,
+            imageVector = NexioIcons.ChevronForward,
             contentDescription = null,
             modifier = Modifier.size(13.dp),
             tint = summary
@@ -1794,7 +1849,7 @@ private fun NewVersionBack(
     interactive: Boolean,
     onStartUpdate: () -> Unit,
 ) {
-    val colorScheme = MiuixTheme.colorScheme
+    val colorScheme = NexioTheme.colorScheme
     val onCard = colorScheme.onSurface
     val body = prettyReleaseBody(release?.body.orEmpty())
 
@@ -1889,7 +1944,7 @@ private fun NewVersionBack(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
-                imageVector = MiuixIcons.ChevronForward,
+                imageVector = NexioIcons.ChevronForward,
                 contentDescription = null,
                 modifier = Modifier.size(15.dp),
                 tint = colorScheme.primary

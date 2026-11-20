@@ -51,7 +51,7 @@ import com.haooz.chedule.data.util.plusDays
 import com.haooz.chedule.i18n.BackupStr
 import com.haooz.chedule.i18n.CommonStr
 import com.haooz.chedule.ui.basic.OverlayDropdownMenu
-import com.haooz.chedule.ui.components.CardExpand
+import com.haooz.nexioui.cardexpand.CardExpand
 import com.haooz.chedule.ui.components.ScheduleImportConfirmDialog
 import com.haooz.chedule.ui.components.pageTopExtra
 import com.haooz.chedule.ui.components.text.miuix.Text as Text
@@ -74,24 +74,24 @@ import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.LocalTime
 import kotlinx.datetime.isoDayNumber
-import top.yukonga.miuix.kmp.basic.ButtonDefaults
-import top.yukonga.miuix.kmp.basic.Card
-import top.yukonga.miuix.kmp.basic.DropdownDefaults
-import top.yukonga.miuix.kmp.basic.DropdownEntry
-import top.yukonga.miuix.kmp.basic.DropdownItem
-import top.yukonga.miuix.kmp.basic.NativeMiuixTextField
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.basic.SmallTitle
-import top.yukonga.miuix.kmp.basic.TextButton
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
-import top.yukonga.miuix.kmp.layout.SharedScrollBehavior
-import top.yukonga.miuix.kmp.layout.collapsibleTopInset
-import top.yukonga.miuix.kmp.layout.isTabletWidth
-import top.yukonga.miuix.kmp.overlay.OverlayDialog
-import top.yukonga.miuix.kmp.preference.ArrowPreference
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.haooz.nexioui.button.ButtonDefaults
+import com.haooz.nexioui.card.Card
+import com.haooz.nexioui.dropdown.DropdownDefaults
+import com.haooz.nexioui.dropdown.DropdownEntry
+import com.haooz.nexioui.dropdown.DropdownItem
+import com.haooz.nexioui.textfield.TextField
+import com.haooz.nexioui.scaffold.Scaffold
+import com.haooz.nexioui.smalltitle.SmallTitle
+import com.haooz.nexioui.button.FlatTextButton
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBarDefaults
+import com.haooz.nexioui.topappbar.SharedScrollBehavior
+import com.haooz.nexioui.topappbar.collapsibleTopInset
+import com.haooz.nexioui.window.isTabletWidth
+import com.haooz.nexioui.overlaydialog.OverlayDialog
+import com.haooz.nexioui.arrowpreference.ArrowPreference
+import com.haooz.nexioui.theme.NexioTheme
+import com.haooz.nexioui.overscroll.overScrollVertical
+import com.haooz.nexioui.scrollhaptic.scrollEndHaptic
 
 /** 课表导入 / 导出两种页面模式。 */
 enum class ScheduleDataManageMode {
@@ -422,7 +422,7 @@ fun BackupAndMigrationScreen(
                                 Text(
                                     text = BackupStr.noScheduleForExport(),
                                     modifier = Modifier.padding(16.dp),
-                                    color = MiuixTheme.colorScheme.onSurfaceVariantSummary
+                                    color = NexioTheme.colorScheme.onSurfaceVariantSummary
                                 )
                             }
                         }
@@ -538,7 +538,7 @@ fun BackupAndMigrationScreen(
                 .padding(top = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            TextButton(
+            FlatTextButton(
                 text = CommonStr.cancel(),
                 onClick = {
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
@@ -546,10 +546,10 @@ fun BackupAndMigrationScreen(
                 },
                 modifier = Modifier.weight(1f)
             )
-            TextButton(
+            FlatTextButton(
                 text = if (isSharingExport) BackupStr.sharing() else BackupStr.confirmShare(),
                 onClick = {
-                    if (isSharingExport) return@TextButton
+                    if (isSharingExport) return@FlatTextButton
                     hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                     val name = selectedExportSchedule
                     showShareExportConfirmDialog = false
@@ -578,7 +578,7 @@ fun BackupAndMigrationScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            NativeMiuixTextField(
+            TextField(
                 value = shareCodeInput,
                 onValueChange = { shareCodeInput = it },
                 label = BackupStr.shareCodeLabel(),
@@ -591,7 +591,7 @@ fun BackupAndMigrationScreen(
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TextButton(
+                FlatTextButton(
                     text = CommonStr.cancel(),
                     onClick = {
                         if (!isImportingShareCode) {
@@ -602,14 +602,14 @@ fun BackupAndMigrationScreen(
                     },
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(
+                FlatTextButton(
                     text = if (isImportingShareCode) BackupStr.importing() else BackupStr.fetchSchedule(),
                     onClick = {
-                        if (isImportingShareCode) return@TextButton
+                        if (isImportingShareCode) return@FlatTextButton
                         val code = shareCodeInput.trim()
                         if (code.isBlank()) {
                             showToast(BackupStr.enterShareCode())
-                            return@TextButton
+                            return@FlatTextButton
                         }
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                         isImportingShareCode = true
@@ -656,7 +656,7 @@ fun BackupAndMigrationScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            NativeMiuixTextField(
+            TextField(
                 value = thirdPartyCodeInput,
                 onValueChange = { thirdPartyCodeInput = it },
                 label = thirdPartySource.inputLabel,
@@ -669,7 +669,7 @@ fun BackupAndMigrationScreen(
                     .padding(top = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                TextButton(
+                FlatTextButton(
                     text = CommonStr.cancel(),
                     onClick = {
                         if (!isImportingThirdParty) {
@@ -680,15 +680,15 @@ fun BackupAndMigrationScreen(
                     },
                     modifier = Modifier.weight(1f)
                 )
-                TextButton(
+                FlatTextButton(
                     text = if (isImportingThirdParty) BackupStr.importing() else BackupStr.fetchSchedule(),
                     onClick = {
-                        if (isImportingThirdParty) return@TextButton
+                        if (isImportingThirdParty) return@FlatTextButton
                         val source = thirdPartySource
                         val code = thirdPartyCodeInput.trim()
                         if (code.isBlank()) {
                             showToast(BackupStr.enterInputN(source.inputLabel))
-                            return@TextButton
+                            return@FlatTextButton
                         }
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.Confirm)
                         isImportingThirdParty = true

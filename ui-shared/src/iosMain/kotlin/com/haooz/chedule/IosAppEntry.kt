@@ -37,6 +37,7 @@ import com.haooz.chedule.ui.activities.main.CourseScheduleApp
 import com.haooz.chedule.ui.activities.today.TodayAssistantCard
 import com.haooz.chedule.ui.screens.LocalTabletSettingsPaneRouteContent
 import com.haooz.chedule.ui.navigation.AboutRoute
+import com.haooz.chedule.ui.navigation.AiFeaturesRoute
 import com.haooz.chedule.ui.navigation.AiImportRoute
 import com.haooz.chedule.ui.navigation.AppNavHost
 import com.haooz.chedule.ui.navigation.AppRoute
@@ -45,6 +46,7 @@ import com.haooz.chedule.ui.navigation.AppreciateAuthorRoute
 import com.haooz.chedule.ui.navigation.BackupAndMigrationRoute
 import com.haooz.chedule.ui.navigation.BackupCenterRoute
 import com.haooz.chedule.ui.navigation.ChangelogRoute
+import com.haooz.chedule.ui.navigation.McpServiceRoute
 import com.haooz.chedule.ui.navigation.WeatherRoute
 import com.haooz.chedule.ui.navigation.CommunicationRoute
 import com.haooz.chedule.ui.navigation.CourseManageRoute
@@ -65,6 +67,9 @@ import com.haooz.chedule.ui.navigation.SettingsRoute
 import com.haooz.chedule.ui.navigation.UpdatePreferencesRoute
 import com.haooz.chedule.ui.navigation.UpdateSettingsRoute
 import com.haooz.chedule.ui.navigation.WebDavSettingsRoute
+import com.haooz.chedule.ui.navigation.AiEduImportRoute
+import com.haooz.chedule.ui.navigation.AiEduImportHistoryRoute
+import com.haooz.chedule.ui.navigation.AiEduPreviewRoute
 import com.haooz.chedule.ui.navigation.WebImportRoute
 import com.haooz.chedule.ui.navigation.WidgetIntroRoute
 import com.haooz.chedule.ui.screens.WeatherBootstrapIos
@@ -335,6 +340,13 @@ internal fun NexioIosRouteContent(router: AppRouter, route: AppRoute) {
         AppRoute.Feedback -> FeedbackRoute(router)
         AppRoute.FeedbackHistory -> FeedbackHistoryRoute(router)
         AppRoute.FeedbackRoadmap -> FeedbackRoadmapRoute(router)
+        AppRoute.AiFeatures -> AiFeaturesRoute(router)
+        AppRoute.McpService -> McpServiceRoute(
+            router = router,
+            onCopyToClipboard = { text ->
+                UIPasteboard.generalPasteboard.string = text
+            },
+        )
         AppRoute.AppreciateAuthor -> AppreciateAuthorRoute(router)
         // 带注入的文档壳：iOS 用默认 Noop 能力，剪贴板注入 UIPasteboard
         AppRoute.PreferenceSettings -> PreferenceSettingsRoute(router)
@@ -411,5 +423,12 @@ internal fun NexioIosRouteContent(router: AppRouter, route: AppRoute) {
             router = router,
             webHostFactory = { config, events -> rememberIosWebHost(config, events) },
         )
+        // AI 教务导入：同一套 WKWebView 宿主，脚本由模型现场写
+        AppRoute.AiEduImport -> AiEduImportRoute(
+            router = router,
+            webHostFactory = { config, events -> rememberIosWebHost(config, events) },
+        )
+        AppRoute.AiEduImportHistory -> AiEduImportHistoryRoute(router)
+        AppRoute.AiEduPreview -> AiEduPreviewRoute(router)
     }
 }

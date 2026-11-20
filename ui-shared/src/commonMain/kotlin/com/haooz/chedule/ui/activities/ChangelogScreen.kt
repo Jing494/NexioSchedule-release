@@ -33,24 +33,24 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.haooz.chedule.ui.components.CardExpand
+import com.haooz.nexioui.cardexpand.CardExpand
 import com.haooz.chedule.ui.components.pageTopExtra
 import com.haooz.chedule.ui.components.text.material.Text as Text
 import com.haooz.chedule.ui.data.changelogData
 import com.haooz.chedule.ui.utils.screenWidthDp
 import com.haooz.softglass.shape.ContinuousRoundedRectangle
 import com.haooz.softglass.shape.continuousBackground
-import top.yukonga.miuix.kmp.basic.CardDefaults
-import top.yukonga.miuix.kmp.basic.Icon
-import top.yukonga.miuix.kmp.basic.Scaffold
-import top.yukonga.miuix.kmp.icon.MiuixIcons
-import top.yukonga.miuix.kmp.icon.extended.ChevronForward
-import top.yukonga.miuix.kmp.layout.CollapsibleTopAppBarDefaults
-import top.yukonga.miuix.kmp.layout.SharedScrollBehavior
-import top.yukonga.miuix.kmp.layout.collapsibleTopInset
-import top.yukonga.miuix.kmp.theme.MiuixTheme
-import top.yukonga.miuix.kmp.utils.overScrollVertical
-import top.yukonga.miuix.kmp.utils.scrollEndHaptic
+import com.haooz.nexioui.card.CardDefaults
+import androidx.compose.material3.Icon
+import com.haooz.nexioui.scaffold.Scaffold
+import com.haooz.nexioui.icon.NexioIcons
+import com.haooz.nexioui.icon.extended.ChevronForward
+import com.haooz.nexioui.topappbar.CollapsibleTopAppBarDefaults
+import com.haooz.nexioui.topappbar.SharedScrollBehavior
+import com.haooz.nexioui.topappbar.collapsibleTopInset
+import com.haooz.nexioui.theme.NexioTheme
+import com.haooz.nexioui.overscroll.overScrollVertical
+import com.haooz.nexioui.scrollhaptic.scrollEndHaptic
 
 /** 预加载时先排的条目数：够铺满首屏，剩下的等展开到位再补齐。 */
 private const val ChangelogInitialRows = 4
@@ -104,15 +104,6 @@ fun ChangelogScreen(
         )
     }
 
-    val rotations = List(changelogData.size) { index ->
-        val rotation by animateFloatAsState(
-            targetValue = if (expandedStates[index]) 90f else -90f,
-            animationSpec = tween(durationMillis = 200),
-            label = "changelogRotation$index"
-        )
-        rotation
-    }
-
     Scaffold(
         topBar = {}
     ) { paddingValues ->
@@ -144,6 +135,13 @@ fun ChangelogScreen(
                     .continuousBackground(CardDefaults.defaultColors().color, CardDefaults.CornerRadius)
             ) {
                 changelogData.take(renderCount).forEachIndexed { index, entry ->
+                    // 只为当前可见条目建旋转动画。预加载期只排首屏 4 条，别为全部 42 条
+                    // 各建一份 Animatable + State + 协程；补齐发生在落定后的静止帧。
+                    val rotation by animateFloatAsState(
+                        targetValue = if (expandedStates[index]) 90f else -90f,
+                        animationSpec = tween(durationMillis = 200),
+                        label = "changelogRotation$index",
+                    )
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -172,22 +170,22 @@ fun ChangelogScreen(
                                 text = entry.version,
                                 fontSize = 17.sp,
                                 fontWeight = FontWeight.Medium,
-                                color = MiuixTheme.colorScheme.onSurface,
+                                color = NexioTheme.colorScheme.onSurface,
                                 modifier = Modifier.weight(1f)
                             )
                             Text(
                                 text = entry.date,
                                 fontSize = 14.sp,
-                                color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                color = NexioTheme.colorScheme.onSurfaceVariantActions
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
-                                imageVector = MiuixIcons.ChevronForward,
+                                imageVector = NexioIcons.ChevronForward,
                                 contentDescription = null,
                                 modifier = Modifier
                                     .size(16.dp)
-                                    .graphicsLayer { rotationZ = rotations[index] },
-                                tint = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                    .graphicsLayer { rotationZ = rotation },
+                                tint = NexioTheme.colorScheme.onSurfaceVariantActions
                             )
                         }
                         CardExpand(visible = expandedStates[index]) {
@@ -200,13 +198,13 @@ fun ChangelogScreen(
                                             text = "• ",
                                             fontSize = 14.sp,
                                             lineHeight = 22.sp,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantActions
+                                            color = NexioTheme.colorScheme.onSurfaceVariantActions
                                         )
                                         Text(
                                             text = change(),
                                             fontSize = 14.sp,
                                             lineHeight = 22.sp,
-                                            color = MiuixTheme.colorScheme.onSurfaceVariantActions,
+                                            color = NexioTheme.colorScheme.onSurfaceVariantActions,
                                             modifier = Modifier.weight(1f)
                                         )
                                     }
@@ -222,7 +220,7 @@ fun ChangelogScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 18.dp)
                                 .height(0.5.dp)
-                                .background(MiuixTheme.colorScheme.onSurfaceVariantActions.copy(alpha = 0.07f))
+                                .background(NexioTheme.colorScheme.onSurfaceVariantActions.copy(alpha = 0.07f))
                         )
                     }
                 }

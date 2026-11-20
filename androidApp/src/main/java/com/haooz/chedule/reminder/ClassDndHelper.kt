@@ -435,7 +435,7 @@ object ClassDndHelper {
     // ————————————————————————— 对账入口 —————————————————————————
 
     // 受课程提醒总开关约束
-    private fun isFeatureAvailable(context: Context): Boolean {
+    private fun isFeatureAvailable(): Boolean {
         val repository = CourseRepository()
         val masterEnabled = repository.getPreClassReminder() || repository.getNextDayReminder()
         return masterEnabled && repository.getClassDndEnabled()
@@ -490,7 +490,7 @@ object ClassDndHelper {
     fun applyCurrentState(context: Context) {
         val p = prefs(context)
         if (p.getLong(KEY_SUPPRESS_UNTIL, 0L) > System.currentTimeMillis()) return
-        if (!isTempSession(context) && !isFeatureAvailable(context)) {
+        if (!isTempSession(context) && !isFeatureAvailable()) {
             handBack(context, requireConsistency = false)
             return
         }
