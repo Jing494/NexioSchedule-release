@@ -500,6 +500,27 @@ def main():
         else:
             print("  ✓ %s：%s 出现 %d 次（期望 %d~%d）" % (label, symbol, total, lo, hi))
 
+    # ── 已移除的 :miuix 模块不能复活 ──
+    # 1.7.3 起上游把 :miuix fork 模块整体删掉、控件迁到外部库 NexioUI。
+    # 复活的表现不是编译错，而是**配置期**就炸（指到不存在的目录）——
+    # 这里用「模块目录是否还存在」+「构建脚本里有没有再 include 它」两条钉住。
+    if os.path.isdir(os.path.join(ROOT, "miuix/src")):
+        failures.append((0, "已移除的 :miuix 模块不能复活", ["miuix/src 又出现了"]))
+        print("  ✗ 已移除的 :miuix 模块不能复活 —— miuix/src 目录又出现了")
+    else:
+        root_build = read("build.gradle.kts") or ""
+        settings_txt = read("settings.gradle.kts") or ""
+        revived = []
+        if re.search(r'include\(":miuix"\)', settings_txt):
+            revived.append("settings.gradle.kts 又 include 了 :miuix")
+        if re.search(r'purityModules\s*=\s*listOf\([^)]*"miuix"', root_build):
+            revived.append("build.gradle.kts 的 purityModules 又写了 miuix")
+        if revived:
+            failures.append((0, "已移除的 :miuix 模块不能复活", revived))
+            print("  ✗ 已移除的 :miuix 模块不能复活 —— %s" % "; ".join(revived))
+        else:
+            print("  ✓ 已移除的 :miuix 模块没有复活（控件走 NexioUI）")
+
     # ── 设置首页入口 ⊆ 搜索索引（集合比对，正则表达不了）──
     # 真实反馈：设置首页有「通知与超级岛测试」入口，但搜索索引里没有这条，
     # 于是搜「通知」「超级岛」都查不到 —— 用户以为功能不存在。

@@ -138,7 +138,9 @@ abstract class CheckKmpPurityTask : DefaultTask() {
 }
 
 val puritySourceSets = listOf("commonMain", "skikoMain")
-val purityModules = listOf("core", "miuix", "ui-shared")
+// 1.7.3 起 :miuix 模块整体移除（控件迁到外部库 NexioUI），列表里不能再写它 ——
+// sources.from(file("miuix/src/...")) 指向不存在的目录会让 Gradle 配置期直接失败。
+val purityModules = listOf("core", "ui-shared")
 
 tasks.register<CheckKmpPurityTask>("checkKmpPurity") {
     group = "verification"

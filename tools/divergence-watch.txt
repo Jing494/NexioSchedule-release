@@ -52,3 +52,8 @@ ui-shared/src/commonMain/kotlin/com/haooz/chedule/ui/activities/main/CourseSched
 # 上游 1.6.5 后再拆一刀：落点判定（computeDropTarget）进了 State 文件，
 # 我们往里加了「压在特殊块上不是有效落点」的判定。
 ui-shared/src/commonMain/kotlin/com/haooz/chedule/ui/activities/main/CourseScheduleAppState.kt
+# ★ 2026-11-20 补：上游 1.7.3 把 :miuix 删了、控件迁到 NexioUI。本 fork 的自建页
+#   （提醒体检 / 通知与超级岛测试）是**用旧库控件写的**，每次上游动这批控件都得重对一遍 API。
+ui-shared/src/commonMain/kotlin/com/haooz/chedule/ui/screens/ReminderTestScreen.kt
+ui-shared/src/commonMain/kotlin/com/haooz/chedule/ui/activities/setting/SettingsScreen.kt
+ui-shared/src/commonMain/kotlin/com/haooz/chedule/ui/activities/setting/SettingsSearch.kt
