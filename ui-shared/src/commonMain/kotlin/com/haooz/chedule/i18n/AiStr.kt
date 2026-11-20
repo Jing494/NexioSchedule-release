@@ -17,6 +17,23 @@ object AiStr {
     val retry = L("重试", "Retry")
     val serverDisabled = L("Nexio 免费 AI 暂未启用", "Nexio free AI is not enabled")
 
+    /**
+     * 免费 AI 被**主动停用**时的说明（不是"服务端挂了"，也不是"网络问题"）。
+     *
+     * 本方案拿不到上游服务端下发的访问密钥，免费额度这条链路必然 403，
+     * 所以干脆在客户端拦下并指路到 BYOK —— 别让用户对着"额度不可用 + 重试"反复点。
+     */
+    val freeAiDisabled = L(
+        "本方案未启用 Nexio 免费 AI（服务端由上游作者自建，需要授权才能用）。",
+        "Nexio's free AI is not available in this build (the server is run by the upstream author and requires authorization).",
+    )
+    val freeAiUseByok = L(
+        "在下面配置自己的模型服务商即可使用全部 AI 功能，费用直接结算给你选的服务商。",
+        "Set up your own model provider below to use all AI features; billing goes directly to your provider.",
+    )
+    val freeAiBadge = L("未启用", "Disabled")
+    val freeAiPickProvider = L("请选择下面的服务商并填入 Key", "Pick a provider below and enter your key")
+
     val byokSection = L("模型服务商", "Model Provider")
     val providerLabel = L("服务商", "Provider")
     val providerFree = L("每日免费 AI", "Free daily AI")

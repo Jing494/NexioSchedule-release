@@ -1,6 +1,8 @@
 package com.haooz.chedule.data.ai
 
+import com.haooz.chedule.data.platform.FREE_AI_DISABLED_MESSAGE
 import com.haooz.chedule.data.platform.HttpService
+import com.haooz.chedule.data.platform.isFreeAiDisabled
 import com.haooz.chedule.data.platform.StatsReporter
 import com.haooz.chedule.data.util.optInt
 import com.haooz.chedule.data.util.optJsonArray
@@ -82,6 +84,10 @@ class AiEduAgentClient(
         val byok = AiByokStore.load()
         if (byok.isUsable) return AiDirectClient(http).turn(byok, messages, tools)
 
+        if (isFreeAiDisabled()) {
+            return AiResult.Error(FREE_AI_DISABLED_MESSAGE)
+        }
+
         val body = buildJsonObject {
             // 服务端按 device_id 计每日额度（与统计上报同一个 ID）
             put("device_id", StatsReporter.ensureDeviceId())
@@ -127,6 +133,12 @@ class AiEduAgentClient(
         // 用户自带服务商：直连供应商的 SSE，不经过我们的服务器
         val byok = AiByokStore.load()
         if (byok.isUsable) return AiDirectClient(http).turnStream(byok, messages, tools, onEvent)
+
+        // 免费 AI 被主动关掉时直接说清楚：流式路径一行都不会回调，
+        // 不在这里拦就会被兜底成"服务端没有给出结果"，用户看不出该去配 BYOK
+        if (isFreeAiDisabled()) {
+            return AiResult.Error(FREE_AI_DISABLED_MESSAGE)
+        }
 
         if (!AiServerKey.isConfigured()) return AiResult.Error("这个版本还没内置服务端公钥")
 

@@ -122,6 +122,8 @@ fun EducationalImportScreen(
     onOpenWebImport: () -> Unit,
     /** 打开 AI 教务导入（模型现场写适配脚本）。同样由路由层注入。 */
     onOpenAiImport: () -> Unit = {},
+    /** 打开「AI 功能」页：没配自带服务商时，AI 导入入口会把人送到这里。 */
+    onOpenAiSettings: () -> Unit = {},
 ) {
 
     // 本页只做学校 / 适配器选择：顶栏标题与渐变模糊由 Compose 画
@@ -256,6 +258,7 @@ fun EducationalImportScreen(
                             onOpenWebImport()
                         },
                         onOpenAiImport = onOpenAiImport,
+                        onOpenAiSettings = onOpenAiSettings,
                     )
                 }
             }

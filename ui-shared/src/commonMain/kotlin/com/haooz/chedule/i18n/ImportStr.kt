@@ -236,6 +236,17 @@ Reply strictly in this format and do not add any other text."""
         "AI自动开始分析页面与接口，撰写脚本",
         "AI reads the page and APIs and writes the adapter script",
     )
+    /**
+     * 没配自带服务商时的副标题。
+     *
+     * 对话式导入每一轮都要一次模型调用，走的是"免费 AI"那条链路；本方案拿不到上游
+     * 服务端的访问密钥，那条链路被主动拦下了（见 HttpService 的 FREE_AI_CALLS_ENABLED）。
+     * 所以这里必须**先说要配服务商**，别再写"AI 自动开始分析"骗人点进去。
+     */
+    val aiEduEntrySubtitleNeedsByok = L(
+        "需先到「AI 功能」配置自己的模型服务商",
+        "Set up your own model provider under AI Features first",
+    )
 
     // ── AI 教务导入：三个阶段（网页 / 对话 / 预览） ──
     /** 底栏说明：告诉用户分析前要先把课表页翻出来 */

@@ -40,6 +40,7 @@ import com.haooz.chedule.data.ai.AiProviders
 import com.haooz.chedule.data.ai.AiResult
 import com.haooz.chedule.data.platform.HttpTimeouts
 import com.haooz.chedule.data.platform.createHttpService
+import com.haooz.chedule.data.platform.isFreeAiDisabled
 import com.haooz.chedule.i18n.AiStr
 import com.haooz.chedule.i18n.McpStr
 import com.haooz.chedule.ui.basic.OverlayDropdownMenu
@@ -110,6 +111,10 @@ fun AiFeaturesScreen(
         }
         loading = false
     }
+    // 免费 AI 在本方案里是**主动停用**的（见 HttpService 的 FREE_AI_CALLS_ENABLED）：
+    // 上面那次请求会被客户端当场拦下。这里直接问同一个谓词，不去匹配错误文案 ——
+    // 文案会随语言变，判断必须跟着开关走。
+    val freeAiDisabled = quotaError != null && isFreeAiDisabled()
 
     val stored = remember { AiByokStore.load() }
     var provider by remember { mutableStateOf(stored.provider) }
@@ -217,6 +222,23 @@ fun AiFeaturesScreen(
                 Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                     val quota = capabilities?.quota
                     when {
+                        // 主动停用优先于一切：不显示「读取中 / 不可用 / 重试」，直接说明 + 指路
+                        freeAiDisabled -> Column(modifier = Modifier.fillMaxWidth()) {
+                            Text(
+                                text = AiStr.freeAiDisabled(),
+                                style = NexioTheme.textStyles.body1,
+                                fontSize = 14.sp,
+                                color = theme.onSurface,
+                            )
+                            Text(
+                                text = AiStr.freeAiUseByok(),
+                                style = NexioTheme.textStyles.footnote2,
+                                fontSize = 14.sp,
+                                color = theme.onSurfaceVariantSummary,
+                                modifier = Modifier.padding(top = 6.dp),
+                            )
+                        }
+
                         loading -> Text(
                             text = AiStr.quotaLoading(),
                             style = NexioTheme.textStyles.body2,
@@ -287,8 +309,11 @@ fun AiFeaturesScreen(
                         entry = DropdownEntry(
                             items = AiProviders.presets.map { preset ->
                                 DropdownItem(
+                                    // 免费额度在本方案里停用：文案直接标「未启用」，
+                                    // 别让用户选了它之后发现所有 AI 功能都不动
                                     text = when {
-                                        AiProviders.isFree(preset.id) -> AiStr.providerFree()
+                                        AiProviders.isFree(preset.id) ->
+                                            "${AiStr.providerFree()}（${AiStr.freeAiBadge()}）"
                                         AiProviders.isCustom(preset.id) -> AiStr.providerCustom()
                                         else -> preset.label
                                     },

@@ -353,6 +353,8 @@ fun EducationalImportRoute(
         // 用路由自己的 router（不用 LocalAppRouter：iOS 原生文档页容器不 provide 它）
         onOpenWebImport = { router.navigate(AppRoute.WebImport) },
         onOpenAiImport = { router.navigate(AppRoute.AiEduImport) },
+        // 没配自带服务商时，AI 导入入口直接把人送到「AI 功能」页去配
+        onOpenAiSettings = { router.navigate(AppRoute.AiFeatures) },
     )
 }
 

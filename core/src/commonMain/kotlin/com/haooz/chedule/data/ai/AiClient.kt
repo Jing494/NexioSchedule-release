@@ -1,7 +1,9 @@
 package com.haooz.chedule.data.ai
 
 import com.haooz.chedule.data.platform.ApiEndpoints
+import com.haooz.chedule.data.platform.FREE_AI_DISABLED_MESSAGE
 import com.haooz.chedule.data.platform.HttpService
+import com.haooz.chedule.data.platform.isFreeAiDisabled
 import com.haooz.chedule.data.platform.StatsReporter
 import com.haooz.chedule.data.util.jsonToPlainValue
 import com.haooz.chedule.data.util.optInt
@@ -93,6 +95,11 @@ class AiClient(
             return AiDirectClient(http).shrinkLabels(classrooms = cleanRooms, courses = cleanCourses)
         }
 
+        // 没配服务商 = 只剩免费 AI 这条路，而它在当前方案里是主动关掉的
+        if (isFreeAiDisabled()) {
+            return AiResult.Error(FREE_AI_DISABLED_MESSAGE)
+        }
+
         val body = buildJsonObject {
             put("task", TASK_SHRINK_CLASSROOMS)
             // 服务端按这个 ID 算每天用量（与统计上报同一个 ID）
@@ -136,6 +143,9 @@ class AiClient(
      * 与 [shrinkLabels] 共用加密通道；不消耗额度，只读。
      */
     suspend fun capabilities(): AiResult<AiCapabilities> {
+        if (isFreeAiDisabled()) {
+            return AiResult.Error(FREE_AI_DISABLED_MESSAGE)
+        }
         val body = buildJsonObject {
             put("device_id", StatsReporter.ensureDeviceId())
         }

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.haooz.chedule.data.ai.AiByokStore
 import com.haooz.chedule.data.school.AdapterData
 import com.haooz.chedule.data.school.SchoolData
 import com.haooz.chedule.data.school.SchoolRepository
@@ -80,6 +81,13 @@ fun SchoolSelectionScreen(
     onAdapterSelected: (SchoolData, AdapterData) -> Unit,
     /** 顶部「AI 教务导入」入口：模型现场读页面 / 写脚本，不走仓库里的适配 */
     onOpenAiImport: () -> Unit = {},
+    /**
+     * 打开「AI 功能」页（配自带服务商）。
+     *
+     * 没配服务商时点 AI 导入必然是失败的，所以那一下直接把人送到能解决问题的地方 ——
+     * 空手把用户丢进一个注定报错的页面是最糟的交互。
+     */
+    onOpenAiSettings: () -> Unit = {},
 ) {
     val hapticFeedback = LocalHapticFeedback.current
     val schoolRepository = remember { SchoolRepository() }
@@ -244,7 +252,10 @@ fun SchoolSelectionScreen(
                         val groupedEntries = groupedSchools.entries.toList()
                         item(key = "ai_edu_entry") {
                             if (selectedTab == 0) {
-                                AiEduImportEntryCard(onClick = onOpenAiImport)
+                                AiEduImportEntryCard(
+                                    onClick = onOpenAiImport,
+                                    onNeedsSetup = onOpenAiSettings,
+                                )
                             }
                         }
                         groupedEntries.forEachIndexed { index, (letter, schools) ->
@@ -471,9 +482,16 @@ private const val AI_ENTRY_ITEM_COUNT = 1
  * 「按学校找适配」不是同一类操作，混进字母分组里会被当成又一个学校。
  */
 @Composable
-private fun AiEduImportEntryCard(onClick: () -> Unit) {
+private fun AiEduImportEntryCard(
+    onClick: () -> Unit,
+    onNeedsSetup: () -> Unit = {},
+) {
     val haptic = LocalHapticFeedback.current
     val dark = isAppDarkTheme()
+    // 对话式导入每一轮都是一次模型调用：没配自带服务商时走的是"免费 AI"，
+    // 而那条链路在本方案里被主动关了（见 HttpService 的 FREE_AI_CALLS_ENABLED）。
+    // 所以没配就**直说**，别让用户点进去对着一片"分析中"等失败。
+    val byokReady = remember { AiByokStore.load().isUsable }
     // 淡蓝色底 + 深蓝文字：与下面「按学校找适配」的行区分开，又不至于抢过页面的主色
     val cardBg = if (dark) Color(0xFF172A42) else Color(0xFFE8F1FF)
     val titleColor = if (dark) Color(0xFFD8E8FF) else Color(0xFF17427A)
@@ -485,7 +503,8 @@ private fun AiEduImportEntryCard(onClick: () -> Unit) {
                 .clip(ContinuousRoundedRectangle(20.dp))
                 .clickable {
                     haptic.performHapticFeedback(HapticFeedbackType.VirtualKey)
-                    onClick()
+                    // 没配服务商 → 送去配置页；配了才进对话导入
+                    if (byokReady) onClick() else onNeedsSetup()
                 }
                 .background(cardBg)
                 .padding(horizontal = 18.dp, vertical = 16.dp),
@@ -499,7 +518,11 @@ private fun AiEduImportEntryCard(onClick: () -> Unit) {
                     color = titleColor
                 )
                 Text(
-                    text = ImportStr.aiEduEntrySubtitle(),
+                    text = if (byokReady) {
+                        ImportStr.aiEduEntrySubtitle()
+                    } else {
+                        ImportStr.aiEduEntrySubtitleNeedsByok()
+                    },
                     fontSize = 13.sp,
                     color = subColor,
                     modifier = Modifier.padding(top = 3.dp)

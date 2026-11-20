@@ -62,7 +62,10 @@ internal suspend fun aiRoundTrip(http: HttpService, path: String, body: JsonObje
         return AiResult.Error("网络请求失败：${e.describe()}")
     }
     if (!result.isSuccessful) {
-        return AiResult.Error("服务端返回 ${result.code}")
+        // 优先带出响应体里的 error：客户端主动拦截（免费 AI 停用）时回的是 503 + 固定话术，
+        // 只报“服务端返回 503”会让 UI 显示一句看不懂的数字。
+        val bodyError = runCatching { parseJsonObject(result.text).optString("error") }.getOrNull()
+        return AiResult.Error(bodyError?.takeIf { it.isNotEmpty() } ?: "服务端返回 ${result.code}")
     }
 
     val response = runCatching { parseJsonObject(result.text) }.getOrNull()

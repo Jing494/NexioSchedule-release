@@ -521,6 +521,28 @@ def main():
         else:
             print("  ✓ 已移除的 :miuix 模块没有复活（控件走 NexioUI）")
 
+    # ── 主动拦截的范围：只拦免费 AI，不许扩大到天气 / 节假日 / 统计 ──
+    # 本方案拿不到上游服务端的访问密钥，免费 AI 必然 403（见 HttpService 的
+    # FREE_AI_CALLS_ENABLED）。拦它是为了给用户一句人话，**多拦一个都是事故**：
+    # 天气（小米/Open-Meteo/中国天气网）、节假日（apihubs/unpkg）必须照常工作。
+    # 这条钉住谓词的实现，防止以后有人图省事把它改成「拦整个自家域名」。
+    http_kt = read(f"{J_CORE}/data/platform/HttpService.kt") or ""
+    scope_problems = []
+    if "FREE_AI_CALLS_ENABLED" not in http_kt:
+        scope_problems.append("HttpService 里没有 FREE_AI_CALLS_ENABLED 开关")
+    # 谓词必须只匹配 /api/ai 前缀
+    if 'rest == "/api/ai" || rest.startsWith("/api/ai/")' not in http_kt:
+        scope_problems.append("isFreeAiEndpoint 的匹配条件变了（应只认 /api/ai 前缀）")
+    if re.search(r"fun isBlockedSelfHostedCall\(url: String\): Boolean =\s*!\w+\s*&&\s*isOwnServer\(", http_kt):
+        scope_problems.append("isBlockedSelfHostedCall 被改成拦整个自家域名了（会误伤天气/统计）")
+    if scope_problems:
+        failures.append((0, "主动拦截只许拦免费 AI", scope_problems))
+        print("  ✗ 主动拦截只许拦免费 AI：")
+        for p in scope_problems:
+            print("        %s" % p)
+    else:
+        print("  ✓ 主动拦截只拦免费 AI（天气 / 节假日 / 统计不动）")
+
     # ── 上游换库后「用了符号却没 import」会一直潜伏到编译 ──
     # 1.7.3 上游把 :miuix 删了、控件迁到 NexioUI。Git 只合 import 段，
     # 而本 fork 自建代码里的**调用点**不会跟着变 —— 表现不是 import 悬空
@@ -572,6 +594,32 @@ def main():
         print("  ✗ 设置首页入口 ⊆ 搜索索引 —— 以下入口搜不到: %s" % ", ".join(missing))
     else:
         print("  ✓ 设置首页入口 ⊆ 搜索索引（%d 个入口全部可搜到）" % len(home_routes))
+
+    # ── 自配服务商（BYOK）必须始终可用 ──
+    # 关掉免费 AI 之后，BYOK 是用户**唯一**能用的 AI 路径（含对话式教务导入）。
+    # 三处入口都必须「先试 BYOK、再考虑云端」——顺序反了就等于把自配架空。
+    byok_problems = []
+    byok_files = {
+        f"{J_CORE}/data/ai/AiClient.kt": ("byok.isUsable", "AiDirectClient", "shrinkLabels"),
+        f"{J_CORE}/data/ai/AiEduAgentClient.kt": ("byok.isUsable", "AiDirectClient", "turn"),
+    }
+    for path, (probe, direct, fn) in byok_files.items():
+        text = read(path) or ""
+        if probe not in text or direct not in text:
+            byok_problems.append("%s 里找不到 BYOK 分支（%s / %s）" % (path, probe, direct))
+            continue
+        # BYOK 分支必须出现在「用免费 AI 的那个判定」之前
+        byok_at = text.find(probe)
+        guard_at = text.find("isFreeAiDisabled()")
+        if guard_at != -1 and guard_at < byok_at:
+            byok_problems.append("%s 里「免费 AI 停用」判断排到了 BYOK 之前 —— 会把自配也挡掉" % path)
+    if byok_problems:
+        failures.append((0, "自配服务商（BYOK）必须始终可用", byok_problems))
+        print("  ✗ 自配服务商（BYOK）必须始终可用：")
+        for p in byok_problems:
+            print("        %s" % p)
+    else:
+        print("  ✓ 自配服务商（BYOK）始终可用（三处入口都先试 BYOK）")
 
     print()
     if failures:

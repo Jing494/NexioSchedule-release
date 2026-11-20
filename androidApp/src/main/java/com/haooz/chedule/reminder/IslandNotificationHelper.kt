@@ -16,7 +16,6 @@ import com.haooz.chedule.i18n.AndroidNotifStr
 import com.haooz.chedule.i18n.AndroidWidgetStr
 import com.haooz.chedule.shizuku.ShizukuManager
 import com.haooz.chedule.ui.activities.MainActivity
-import com.haooz.chedule.ui.utils.AndroidReminderController
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,8 +37,8 @@ object IslandNotificationHelper {
     private const val DEFAULT_ISLAND_EXPAND_GLOW = false
     // 课中提醒：到点后「已上课」替换为模板6进度卡片
     const val KEY_IN_CLASS_REMINDER = "island_in_class_enabled"
-    // 课中岛缩略态 B 区：0=正在上课（静态文案），1=距下课倒计时，-1=**未设置**（哨兵，跟随课前 B 区）
-    private const val KEY_IN_CLASS_RIGHT_MODE = "island_in_class_right_mode"
+    // 「课中岛右侧」的键 island_in_class_right_mode 由设置页写、**只给 iOS 灵动岛消费**；
+    // Android 侧固定倒计时，这里不再定义常量（免得有人以为它还在这里生效）。
     // 官方必选：运营场景标识
     private const val BUSINESS_TAG = "course_reminder"
     // 官方 sequence：保证多次更新不乱序
@@ -669,14 +668,10 @@ object IslandNotificationHelper {
         val prefs = AppStorage.store("course_reminder_prefs")
         val expandGlowEnabled = prefs.getBoolean(KEY_ISLAND_EXPAND_GLOW_ENABLED, DEFAULT_ISLAND_EXPAND_GLOW)
         val aodMode = prefs.getInt("island_aod_mode", 0)
-        // 课中岛缩略态 B 区：0=正在上课（静态文案），1=距下课倒计时；未设置(-1)则跟随课前 B 区。
-        // 判定**只有一处真源**：:core 的 ReminderController（设置页与此处共用一份），别在这里再写一套。
-        // 课前 B 区用 island_right_mode（0=课程名 / 1=上课地点 / 2=倒计时，默认 1）——
-        // 翻译成课中语义（课前=2 → 课中=1，其余 → 0）也由它负责。
-        val inClassRightMode = AndroidReminderController(context).effectiveInClassRightMode(
-            preClassMode = prefs.getInt("island_right_mode", 1),
-            inClassMode = prefs.getInt(KEY_IN_CLASS_RIGHT_MODE, -1),
-        )
+        // 课中岛 B 区自 1.7.3 起**固定**「距下课倒计时」（与上游一致）：A 区固定「正在上课」，
+        // B 区走 sameWidthDigitInfo 由系统 timer 自刷到下课。
+        // 设置页那个「课中岛右侧」选项只对 iOS 灵动岛有效（本 fork 保留设置项以与上游对齐），
+        // Android 侧不再读 island_in_class_right_mode —— 别再把它接回来。
 
         val now = System.currentTimeMillis()
         val counting = courseEndMillis > now

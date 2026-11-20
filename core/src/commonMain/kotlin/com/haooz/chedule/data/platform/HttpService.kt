@@ -162,21 +162,84 @@ internal fun withAccessKey(url: String, headers: Map<String, String>): Map<Strin
     return headers + (ACCESS_KEY_HEADER to key)
 }
 
+/**
+ * 本方案**只关闭「免费 AI」**这一类对上游自建服务端的调用，其余一律照旧。
+ *
+ * 为什么只关 AI：那个服务端是上游作者自己部署的、**不在本仓库里**；它按 App 版本放行，
+ * 并要求请求头带一个由服务端下发的访问密钥（`NEXIO_ACCESS_KEY`）。该密钥只存在于上游的
+ * 发布构建里（`core/src/accessKeySecret/`，已 gitignore），开源仓与我们的 CI 都拿不到 ——
+ * 实测所有自家接口一律 `403 {"error":"这个版本已经停止服务…"}`。
+ *
+ * 免费 AI 是唯一「用户会一直卡在失败上、且没有替代路径」的那类：不拦它，界面会停在
+ * 「正在读取额度…」或一句看不懂的 403。拦下来就能直接告诉用户去配自己的服务商（BYOK）。
+ *
+ * ⚠ **不在拦截范围**（都不碰）：
+ *   · 天气：小米 / Open-Meteo / 中国天气网（第三方域名，本来就不经过这里）
+ *   · 节假日：`api.apihubs.cn` 与 `unpkg.com/holiday-calendar`（第三方）
+ *   · 公告 / 统计上报 / 赞赏榜 / 反馈 / 分享口令（拦了只会多出一堆无用报错，且它们
+ *     失败时本来就有兜底；保持原样，将来拿到密钥即可恢复）
+ *   · BYOK 第三方地址、WebDAV、Gitee 脚本仓库、检查更新用的 GitHub/Gitee API
+ */
+private const val FREE_AI_CALLS_ENABLED = false
+
+/** 被主动拦截时返回给调用方的固定话术（UI 直接展示，不出现“403”这种看不懂的数字）。 */
+const val FREE_AI_DISABLED_MESSAGE =
+    "本方案未启用 Nexio 免费 AI，请到「AI 功能」里配置自己的模型服务商"
+
+/** 免费 AI 的入口路径：`/api/ai`、`/api/ai/`、`/api/ai/agent`、`/api/ai/public-key`… */
+private fun isFreeAiEndpoint(url: String): Boolean {
+    if (!isOwnServer(url)) return false
+    val rest = url.substring(ApiEndpoints.BASE.length).substringBefore('?').substringBefore('#')
+    // /api/ai 本身，或 /api/ai/ 前缀下的任意子路径（agent / capabilities / public-key / edu-scripts）
+    return rest == "/api/ai" || rest.startsWith("/api/ai/")
+}
+
+/** 这条 URL 会不会被主动拦截（免费 AI + 开关关闭）。 */
+internal fun isBlockedSelfHostedCall(url: String): Boolean =
+    !FREE_AI_CALLS_ENABLED && isFreeAiEndpoint(url)
+
+/**
+ * 「免费 AI（走 Nexio 自建服务端）」这一档当前不可用。
+ *
+ * 调用方用它决定**要不要走免费 AI 分支**：为 true 时应当直接返回
+ * [FREE_AI_DISABLED_MESSAGE]，而不是发一次注定被拦的请求。
+ */
+fun isFreeAiDisabled(): Boolean = !FREE_AI_CALLS_ENABLED
+
 /** 透明代理：四个方法都只做「补请求头」，其余原样转发。 */
 private class AccessKeyHttpService(private val delegate: HttpService) : HttpService {
+
+    /**
+     * 拦截落点：返回 503 + 固定话术，**不发任何网络请求**。
+     *
+     * 用 503 而不是 403/200：调用方普遍按 `isSuccessful` 判失败，503 天然落进失败分支；
+     * 同时把话术塞进响应体，UI 那些「把服务端 error 原样带出来」的路径能直接显示人话。
+     */
+    private fun blocked(): HttpResult = HttpResult(
+        code = 503,
+        bytes = """{"error":"$SELF_HOSTED_DISABLED_MESSAGE"}""".encodeToByteArray(),
+    )
 
     override suspend fun get(
         url: String,
         headers: Map<String, String>,
         maxBytes: Long,
-    ): HttpResult = delegate.get(url, withAccessKey(url, headers), maxBytes)
+    ): HttpResult = if (isBlockedSelfHostedCall(url)) {
+        blocked()
+    } else {
+        delegate.get(url, withAccessKey(url, headers), maxBytes)
+    }
 
     override suspend fun post(
         url: String,
         body: String,
         contentType: String,
         headers: Map<String, String>,
-    ): HttpResult = delegate.post(url, body, contentType, withAccessKey(url, headers))
+    ): HttpResult = if (isBlockedSelfHostedCall(url)) {
+        blocked()
+    } else {
+        delegate.post(url, body, contentType, withAccessKey(url, headers))
+    }
 
     override suspend fun request(
         method: String,
@@ -184,7 +247,11 @@ private class AccessKeyHttpService(private val delegate: HttpService) : HttpServ
         body: String?,
         contentType: String?,
         headers: Map<String, String>,
-    ): HttpResult = delegate.request(method, url, body, contentType, withAccessKey(url, headers))
+    ): HttpResult = if (isBlockedSelfHostedCall(url)) {
+        blocked()
+    } else {
+        delegate.request(method, url, body, contentType, withAccessKey(url, headers))
+    }
 
     /** 显式转发：用默认实现会把 SSE 变成「读完再切行」。 */
     override suspend fun streamPost(
@@ -193,7 +260,11 @@ private class AccessKeyHttpService(private val delegate: HttpService) : HttpServ
         contentType: String,
         headers: Map<String, String>,
         onLine: suspend (String) -> Unit,
-    ) = delegate.streamPost(url, body, contentType, withAccessKey(url, headers), onLine)
+    ) {
+        // 拦截时**一行都不回调**：调用方靠"流里没有 event"收尾，不会卡住
+        if (isBlockedSelfHostedCall(url)) return
+        delegate.streamPost(url, body, contentType, withAccessKey(url, headers), onLine)
+    }
 }
 
 /** 全 App 统一的 HTTP 入口：平台实现外包一层访问密钥，调用方无需关心。 */
