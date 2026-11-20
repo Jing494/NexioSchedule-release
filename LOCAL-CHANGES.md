@@ -922,3 +922,54 @@ App 支持 English，而这两页原先**整块是中文**。更糟的是测试�
 本 fork 那套 `island_in_class_right_mode` 联动（课前 B 区选择映射到课中）因此**上游侧语义变了**：
 我们保留了设置项与映射函数（`effectiveInClassRightMode`），但上游的渲染路径已经不吃这个键。
 **下次真机验证时如果发现该开关无效，那是上游的产品决定，不是回归**——要恢复二选一得自己接回渲染分支。
+
+---
+
+## 四十、只停用免费 AI，BYOK 全程可用（2026-11-20，gh46）
+
+> 完整经过见 `../HANDOFF.md` §二十六。本文件只记**下次动这块要注意什么**。
+
+### 一、为什么不拦整个自家域名
+
+免费 AI 拿不到服务端密钥（`NEXIO_ACCESS_KEY` 只在上游发布构建里），必然 403。
+但**只拦它，别扩大**：
+
+| 拦 | 为什么不拦其它的 |
+|---|---|
+| `nexioschedule.icu/api/ai*` | 天气（小米 / Open-Meteo / 中国天气网）与节假日（apihubs / unpkg）是**第三方域名**，压根不经过自家服务端 —— 拦了就是纯误伤 |
+| | 公告 / 统计 / 赞赏榜 / 反馈 / 分享口令虽然也 403，但它们**失败时有兜底**，拦了只会多出一堆无用报错；保持原样，将来拿到密钥即可恢复 |
+
+判定实现在 `HttpService.kt`：`isOwnServer(url) && 路径以 /api/ai 开头`。
+拦截点在 `createHttpService` 的代理层 —— **所有 HTTP 的唯一出口**，一处覆盖全部入口。
+
+### 二、BYOK 的顺序是硬约束（有门禁）
+
+关掉免费 AI 后 BYOK 是唯一可用的 AI 路径，三处入口都必须**先试 BYOK**：
+
+```
+AiClient.shrinkLabels          → byok.isUsable ? AiDirectClient.shrinkLabels
+AiEduAgentClient.turn          → byok.isUsable ? AiDirectClient.turn
+AiEduAgentClient.turnStream    → byok.isUsable ? AiDirectClient.turnStream
+```
+
+⚠ **`isFreeAiDisabled()` 的判断一旦排到 BYOK 之前，等于把自配也挡掉。**
+门禁「自配服务商（BYOK）必须始终可用」专门断言这个顺序（反向验证过会红）。
+
+### 三、改常量名时留意字符串模板
+
+`$CONST` 在模板里**没有 IDE 提示**，改名漏一处只能等编译报 Unresolved reference
+（本轮 `SELF_HOSTED_DISABLED_MESSAGE` → `FREE_AI_DISABLED_MESSAGE` 就漏了 `blocked()` 里那处）。
+已有门禁「引用的常量必须已定义」兜住；它跳过注释行（KDoc 里的 `$DASH_TOKEN` 是环境变量）。
+
+### 四、AI 教务导入的三条路径（别再混淆）
+
+| 路径 | 依赖 | 现在可用吗 |
+|---|---|---|
+| 按学校选适配器 → WebView 跑仓库脚本 | 纯本地 + 内置适配脚本 | ✅ 与 AI 无关，一直都好用 |
+| 对话式导入（AI 现场写脚本） | 每轮一次模型调用 | ✅ **配了 BYOK 就用**；没配则被免费 AI 拦截 |
+| 脚本上传到云端脚本库 | `api/ai/edu-scripts` | ❌ 需要密钥 |
+
+### 五、门禁现状
+
+`tools/ci_check.py` 脚本自报 **49 条**（本轮新增三条：拦截范围只许是免费 AI / BYOK 顺序断言 / 常量必需已定义；三条都反向验证过会红），
+另有 `core/src/commonTest/.../SelfHostedScopeTest` 六组断言钉住 URL 范围。
