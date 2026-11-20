@@ -33,7 +33,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
@@ -51,7 +50,6 @@ import com.haooz.chedule.data.school.SchoolRepository
 import com.haooz.chedule.i18n.ImportStr
 import com.haooz.chedule.ui.components.text.material.Text as Text
 import com.haooz.chedule.ui.utils.ExtractedShareTools
-import com.haooz.chedule.ui.utils.isAppDarkTheme
 import com.haooz.chedule.ui.utils.screenWidthDp
 import com.haooz.softglass.shape.ContinuousRoundedRectangle
 import kotlinx.coroutines.launch
@@ -487,15 +485,15 @@ private fun AiEduImportEntryCard(
     onNeedsSetup: () -> Unit = {},
 ) {
     val haptic = LocalHapticFeedback.current
-    val dark = isAppDarkTheme()
     // 对话式导入每一轮都是一次模型调用：没配自带服务商时走的是"免费 AI"，
     // 而那条链路在本方案里被主动关了（见 HttpService 的 FREE_AI_CALLS_ENABLED）。
     // 所以没配就**直说**，别让用户点进去对着一片"分析中"等失败。
     val byokReady = remember { AiByokStore.load().isUsable }
-    // 淡蓝色底 + 深蓝文字：与下面「按学校找适配」的行区分开，又不至于抢过页面的主色
-    val cardBg = if (dark) Color(0xFF172A42) else Color(0xFFE8F1FF)
-    val titleColor = if (dark) Color(0xFFD8E8FF) else Color(0xFF17427A)
-    val subColor = if (dark) Color(0xFF9CB9DE) else Color(0xFF4A74A8)
+    // 主题蓝淡底 + 主题蓝文字：与下面「按学校找适配」的行区分开，深浅色与动态取色都跟随主题
+    val primary = NexioTheme.colorScheme.primary
+    val cardBg = primary.copy(alpha = if (NexioTheme.isDark) 0.16f else 0.12f)
+    val titleColor = primary
+    val subColor = primary.copy(alpha = 0.78f)
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 10.dp)) {
         Row(
             modifier = Modifier
