@@ -217,7 +217,7 @@ private class AccessKeyHttpService(private val delegate: HttpService) : HttpServ
      */
     private fun blocked(): HttpResult = HttpResult(
         code = 503,
-        bytes = """{"error":"$SELF_HOSTED_DISABLED_MESSAGE"}""".encodeToByteArray(),
+        bytes = """{"error":"$FREE_AI_DISABLED_MESSAGE"}""".encodeToByteArray(),
     )
 
     override suspend fun get(

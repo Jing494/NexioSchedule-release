@@ -621,6 +621,38 @@ def main():
     else:
         print("  ✓ 自配服务商（BYOK）始终可用（三处入口都先试 BYOK）")
 
+    # ── 代码里引用的「本仓常量」必须真的定义过 ──
+    # 改常量名时最容易漏一处：字符串模板里的 `$CONST` 没有 IDE 提示，
+    # 编译期才报 Unresolved reference（2026-11-20 把 SELF_HOSTED_DISABLED_MESSAGE
+    # 改名成 FREE_AI_DISABLED_MESSAGE 时，HttpService 自己的 blocked() 就这样炸过一次）。
+    defined_consts = set()
+    for name, text in walk_kt():
+        defined_consts.update(re.findall(r"\bconst val (\w+)", text))
+        defined_consts.update(re.findall(r"^val ([A-Z][A-Z0-9_]+)\b", text, re.M))
+    stale_refs = []
+    for name, text in walk_kt():
+        # 逐行看，跳过注释行（KDoc 里的命令示例会出现 $DASH_TOKEN 这类环境变量，
+        # 它们不是本仓常量，报出来就是噪音）
+        for lineno, line in enumerate(text.split("\n"), 1):
+            stripped = line.lstrip()
+            if stripped.startswith("//") or stripped.startswith("*") or stripped.startswith("/*"):
+                continue
+            for m in re.finditer(r'\$(\{)?([A-Z][A-Z0-9_]{3,})\b', line):
+                const = m.group(2)
+                if const in defined_consts:
+                    continue
+                # 排除模板里的局部变量（同文件里出现 val/var 定义也算已定义）
+                if re.search(r"\b(?:val|var) %s\b" % const, text):
+                    continue
+                stale_refs.append("%s:%d 引用了未定义的常量 %s" % (name, lineno, const))
+    if stale_refs:
+        failures.append((0, "引用的常量必须已定义", stale_refs[:10]))
+        print("  ✗ 引用的常量必须已定义：")
+        for r in stale_refs[:10]:
+            print("        %s" % r)
+    else:
+        print("  ✓ 引用的常量都已在仓库里定义")
+
     print()
     if failures:
         print("❌ 不变量核对未通过：%d 条。这些约束对应的都是真机踩过的坑，请先修源码再发版。" % len(failures))
