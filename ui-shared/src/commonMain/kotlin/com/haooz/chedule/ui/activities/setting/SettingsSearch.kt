@@ -654,6 +654,7 @@ private fun SettingsSearchGroupIcon(group: SettingsSearchGroup) {
         SettingsSearchGroup.Schedule -> ScheduleSettingsIcon()
         SettingsSearchGroup.Reminder -> CourseReminderIcon()
         SettingsSearchGroup.ReminderTest -> ReminderTestIcon()
+        SettingsSearchGroup.AiFeatures -> AiFeaturesIcon()
         SettingsSearchGroup.Widget -> HomeScreenWidgetIcon()
         SettingsSearchGroup.Personalization -> PersonalizationIcon()
         SettingsSearchGroup.ImportExport -> ImportExportIcon()
