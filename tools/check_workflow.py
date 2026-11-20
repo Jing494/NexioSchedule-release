@@ -65,7 +65,16 @@ def check_file(path):
         fail(path, "顶层不是映射")
         return
 
-    walk_nulls(doc, path)
+    # ★ `pull_request:` / `workflow_dispatch:` 写空是**合法**的 YAML（值为 null 即"空 map"），
+    #   GitHub 也照收 —— 上游 1.7.x 的 ci.yml 就是这么写的，被这条误判过。
+    #   所以 `on:` 下的直接子键放行，其它位置的空值仍然算错。
+    on_key = "on" if "on" in doc else (True if True in doc else None)
+    for k in list(doc.keys()):
+        if k == on_key and isinstance(doc[k], dict):
+            for sub in doc[k]:
+                walk_nulls({sub: doc[k][sub]} if doc[k][sub] is not None else {}, path)
+            continue
+        walk_nulls({k: doc[k]}, path)
 
     if isinstance(doc.get("env"), dict) and not doc["env"]:
         fail(path, "`env:` 是空映射 —— 直接删掉这个键")

@@ -2060,7 +2060,6 @@ object CourseReminderHelper {
                 endTime = endTime,
                 startMillis = startMillis,
                 endMillis = endMillis,
-                countdownNotificationId = liveCountdownId(true),
                 testMode = true,
             )
         }

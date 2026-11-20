@@ -158,6 +158,15 @@ jobs:
         run: |
           python3 tools/check_secrets.py --tree --tracked --messages
 
+      - name: 守卫｜具名实参与函数签名一致性（上游改签名时最先炸的就是这里）
+        # 上游删/改形参时，Git 只在**定义处**冲突，**调用点的具名实参**不冲突，
+        # 于是这类 Unresolved / No parameter with name 只能等编译才暴露（2026-11-20 连炸 3 批）。
+        # 这一步在编译前先扫一遍，红得早、信息准。只查「全仓唯一定义且签名解析完整」的函数，
+        # 宁可漏报不误报。
+        if: github.event_name == 'workflow_dispatch' || steps.merge.outputs.merged == 'true'
+        run: |
+          python3 tools/check_named_args.py .
+
       - name: 设置 JDK 21
         if: github.event_name == 'workflow_dispatch' || steps.merge.outputs.merged == 'true'
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4

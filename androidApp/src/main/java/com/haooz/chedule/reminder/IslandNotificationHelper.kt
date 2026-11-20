@@ -20,6 +20,7 @@ import com.haooz.chedule.ui.utils.AndroidReminderController
 import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -1343,8 +1344,6 @@ object IslandNotificationHelper {
             title = title,
             content = content,
             courseName = title,
-            section = section,
-            startTime = startTime,
             classroom = "返校",
             courseStartMillis = null,
         )
@@ -1384,8 +1383,6 @@ object IslandNotificationHelper {
             title = title,
             content = content,
             courseName = title,
-            section = section,
-            startTime = startTime,
             classroom = "返校",
             courseStartMillis = null,
             islandParamsOverride = params,
